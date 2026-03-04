@@ -1,4 +1,4 @@
-export const USERS = ['Vishal', 'Jinesh', 'Hitesh', 'Soham', 'Aakash'] as const;
+export const USERS = ['Vishal', 'Jinesh', 'Hitesh', 'Soham', 'Aakash', 'Sarthak'] as const;
 export type UserName = (typeof USERS)[number];
 
 export type AccountType = 'TFSA' | 'RRSP' | 'Margin' | 'Cash' | 'Other';

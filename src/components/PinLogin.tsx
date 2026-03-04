@@ -15,10 +15,11 @@ const USER_COLORS: Record<string, string> = {
   Hitesh: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   Soham: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   Aakash: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  Sarthak: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
 };
 
 const USER_INITIALS: Record<string, string> = {
-  Vishal: 'V', Jinesh: 'J', Hitesh: 'H', Soham: 'S', Aakash: 'A',
+  Vishal: 'V', Jinesh: 'J', Hitesh: 'H', Soham: 'S', Aakash: 'A', Sarthak: 'S',
 };
 
 export default function PinLogin({ onSuccess }: PinLoginProps) {
