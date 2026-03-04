@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import type { Position, Account, PositionWithMarket, MarketQuote } from './types';
+import type { Position, Account, PositionWithMarket, MarketQuote, WatchlistItem } from './types';
 import * as storage from './lib/storage';
 import { getQuotes, getEarningsForSymbols } from './lib/finnhub';
 import { checkAlerts, sendBrowserNotification, requestNotificationPermission, isAlertsEnabled, setAlertsEnabled } from './lib/alerts';
@@ -11,16 +11,21 @@ import Dashboard from './components/Dashboard';
 import PositionsTable from './components/PositionsTable';
 import AddPosition from './components/AddPosition';
 import AccountManager from './components/AccountManager';
+import Watchlist from './components/Watchlist';
+import TradeHistory from './components/TradeHistory';
+import CloseTradeModal from './components/CloseTradeModal';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [quotes, setQuotes] = useState<Record<string, MarketQuote>>({});
   const [earnings, setEarnings] = useState<Record<string, string>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [closeId, setCloseId] = useState<string | null>(null);
   const [alertsOn, setAlertsOn] = useState(isAlertsEnabled());
   const [alertBanner, setAlertBanner] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -40,29 +45,31 @@ export default function App() {
 
     setPositions(pos);
     setAccounts(acc);
+    setWatchlist(storage.getWatchlist());
   }, []);
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {
     const openPositions = positions.filter(p => p.status === 'open');
-    if (openPositions.length === 0) return;
+    const watchlistTickers = watchlist.map(w => w.ticker);
+    const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers])];
+    if (allSymbols.length === 0) return;
 
     setLoading(true);
     try {
-      const symbols = [...new Set(openPositions.map(p => p.ticker))];
       const [newQuotes, newEarnings] = await Promise.all([
-        getQuotes(symbols),
-        getEarningsForSymbols(symbols),
+        getQuotes(allSymbols),
+        getEarningsForSymbols(allSymbols),
       ]);
       setQuotes(newQuotes);
       setEarnings(prev => ({ ...prev, ...newEarnings }));
       setLastUpdated(new Date().toLocaleTimeString());
     } catch {
-      // Silently fail — quotes just won't update
+      // Silently fail
     } finally {
       setLoading(false);
     }
-  }, [positions]);
+  }, [positions, watchlist]);
 
   // Initial load
   useEffect(() => {
@@ -71,12 +78,12 @@ export default function App() {
 
   // Fetch market data on load and every 60s
   useEffect(() => {
-    if (!authenticated || positions.length === 0) return;
+    if (!authenticated || (positions.length === 0 && watchlist.length === 0)) return;
 
     fetchMarketData();
     const interval = setInterval(fetchMarketData, 60_000);
     return () => clearInterval(interval);
-  }, [authenticated, positions.length, fetchMarketData]);
+  }, [authenticated, positions.length, watchlist.length, fetchMarketData]);
 
   // Toggle alerts
   async function toggleAlerts() {
@@ -96,7 +103,6 @@ export default function App() {
   // Check alerts after market data updates
   useEffect(() => {
     if (!alertsOn || Object.keys(quotes).length === 0) return;
-    // Build positionsWithMarket for alert checking
     const withMarket: PositionWithMarket[] = positions.map(p => {
       const quote = quotes[p.ticker];
       const currentPrice = quote?.c ?? null;
@@ -151,6 +157,19 @@ export default function App() {
     navigate('/add');
   }
 
+  // Close trade
+  function handleCloseTrade(exitPrice: number, closeNote: string) {
+    if (!closeId) return;
+    const updated = storage.updatePosition(closeId, {
+      status: 'closed',
+      exitPrice,
+      closedAt: new Date().toISOString(),
+      closeNote,
+    });
+    setPositions(updated);
+    setCloseId(null);
+  }
+
   // Account CRUD
   function handleAddAccount(account: Account) {
     setAccounts(storage.addAccount(account));
@@ -164,66 +183,108 @@ export default function App() {
     setAccounts(storage.deleteAccount(id));
   }
 
+  // Watchlist CRUD
+  function handleAddWatchlistItem(item: WatchlistItem) {
+    setWatchlist(storage.addWatchlistItem(item));
+  }
+
+  function handleDeleteWatchlistItem(id: string) {
+    setWatchlist(storage.deleteWatchlistItem(id));
+  }
+
   if (!authenticated) {
     return <PinLogin onSuccess={() => setAuthenticated(true)} />;
   }
 
   const editPosition = editId ? positions.find(p => p.id === editId) ?? null : null;
+  const closePosition = closeId ? positionsWithMarket.find(p => p.id === closeId) ?? null : null;
 
   return (
-    <Routes>
-      <Route
-        element={
-          <Layout
-            onLogout={() => setAuthenticated(false)}
-            onRefresh={fetchMarketData}
-            onDataChange={loadData}
-            lastUpdated={lastUpdated}
-            loading={loading}
-            alertsOn={alertsOn}
-            onToggleAlerts={toggleAlerts}
-            alertBanner={alertBanner}
+    <>
+      {/* Close trade modal */}
+      {closePosition && (
+        <CloseTradeModal
+          position={closePosition}
+          onClose={() => setCloseId(null)}
+          onConfirm={handleCloseTrade}
+        />
+      )}
+
+      <Routes>
+        <Route
+          element={
+            <Layout
+              onLogout={() => setAuthenticated(false)}
+              onRefresh={fetchMarketData}
+              onDataChange={loadData}
+              lastUpdated={lastUpdated}
+              loading={loading}
+              alertsOn={alertsOn}
+              onToggleAlerts={toggleAlerts}
+              alertBanner={alertBanner}
+            />
+          }
+        >
+          <Route
+            index
+            element={<Dashboard positions={positionsWithMarket} accounts={accounts} />}
           />
-        }
-      >
-        <Route
-          index
-          element={<Dashboard positions={positionsWithMarket} accounts={accounts} />}
-        />
-        <Route
-          path="positions"
-          element={
-            <PositionsTable
-              positions={positionsWithMarket}
-              accounts={accounts}
-              onDelete={handleDeletePosition}
-              onEdit={handleEditPosition}
-            />
-          }
-        />
-        <Route
-          path="add"
-          element={
-            <AddPosition
-              accounts={accounts}
-              onSave={handleSavePosition}
-              editPosition={editPosition}
-            />
-          }
-        />
-        <Route
-          path="accounts"
-          element={
-            <AccountManager
-              accounts={accounts}
-              positions={positionsWithMarket}
-              onAdd={handleAddAccount}
-              onUpdate={handleUpdateAccount}
-              onDelete={handleDeleteAccount}
-            />
-          }
-        />
-      </Route>
-    </Routes>
+          <Route
+            path="positions"
+            element={
+              <PositionsTable
+                positions={positionsWithMarket}
+                accounts={accounts}
+                onDelete={handleDeletePosition}
+                onEdit={handleEditPosition}
+                onClose={(id) => setCloseId(id)}
+              />
+            }
+          />
+          <Route
+            path="add"
+            element={
+              <AddPosition
+                accounts={accounts}
+                onSave={handleSavePosition}
+                editPosition={editPosition}
+              />
+            }
+          />
+          <Route
+            path="watchlist"
+            element={
+              <Watchlist
+                items={watchlist}
+                quotes={quotes}
+                onAdd={handleAddWatchlistItem}
+                onDelete={handleDeleteWatchlistItem}
+              />
+            }
+          />
+          <Route
+            path="history"
+            element={
+              <TradeHistory
+                positions={positions}
+                accounts={accounts}
+              />
+            }
+          />
+          <Route
+            path="accounts"
+            element={
+              <AccountManager
+                accounts={accounts}
+                positions={positionsWithMarket}
+                onAdd={handleAddAccount}
+                onUpdate={handleUpdateAccount}
+                onDelete={handleDeleteAccount}
+              />
+            }
+          />
+        </Route>
+      </Routes>
+    </>
   );
 }

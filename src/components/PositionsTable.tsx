@@ -7,6 +7,8 @@ import {
   Edit3,
   Calendar,
   AlertTriangle,
+  Search,
+  XCircle,
 } from 'lucide-react';
 import type { PositionWithMarket, Account, Theme, AssetClass, StrategyType } from '../types';
 import { formatCurrency, formatPercent, pnlColor } from '../lib/utils';
@@ -16,6 +18,7 @@ interface PositionsTableProps {
   accounts: Account[];
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
+  onClose?: (id: string) => void;
 }
 
 type SortKey = 'ticker' | 'pnlPercent' | 'pnl' | 'marketValue' | 'theme' | 'entryPrice' | 'currentPrice';
@@ -29,9 +32,10 @@ const STRATEGY_TABS: { label: string; value: StrategyType | 'all' }[] = [
   { label: 'Trend', value: 'Trend Following' },
 ];
 
-export default function PositionsTable({ positions, accounts, onDelete, onEdit }: PositionsTableProps) {
+export default function PositionsTable({ positions, accounts, onDelete, onEdit, onClose }: PositionsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('ticker');
   const [sortAsc, setSortAsc] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterTheme, setFilterTheme] = useState<Theme | 'all'>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'open' | 'closed' | 'all'>('open');
@@ -42,12 +46,14 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
   const accountMap = new Map(accounts.map(a => [a.id, a]));
 
   // Filter
+  const q = searchQuery.toLowerCase();
   let filtered = positions.filter(p => {
     if (filterStatus !== 'all' && p.status !== filterStatus) return false;
     if (filterTheme !== 'all' && p.theme !== filterTheme) return false;
     if (filterAccount !== 'all' && p.accountId !== filterAccount) return false;
     if (filterAssetClass !== 'all' && p.assetClass !== filterAssetClass) return false;
     if (filterStrategy !== 'all' && p.strategy !== filterStrategy) return false;
+    if (q && !p.ticker.toLowerCase().includes(q) && !p.specificTrend.toLowerCase().includes(q) && !p.rationale.toLowerCase().includes(q)) return false;
     return true;
   });
 
@@ -90,6 +96,23 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
 
   return (
     <div className="space-y-4">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search ticker, trend, or rationale..."
+          className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {/* Strategy tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1">
         {STRATEGY_TABS.map(tab => (
@@ -277,6 +300,14 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {p.status === 'open' && onClose && (
+                        <button
+                          onClick={() => onClose(p.id)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                        >
+                          Close
+                        </button>
+                      )}
                       <button
                         onClick={() => onEdit(p.id)}
                         className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-colors"

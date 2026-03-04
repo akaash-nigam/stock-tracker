@@ -1,7 +1,8 @@
-import type { Position, Account } from '../types';
+import type { Position, Account, WatchlistItem } from '../types';
 
 const POSITIONS_KEY = 'st_positions';
 const ACCOUNTS_KEY = 'st_accounts';
+const WATCHLIST_KEY = 'st_watchlist';
 const PIN_HASH_KEY = 'st_pin_hash';
 const SESSION_KEY = 'st_session';
 
@@ -100,12 +101,38 @@ export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
 }
 
+// --- Watchlist ---
+
+export function getWatchlist(): WatchlistItem[] {
+  const raw = localStorage.getItem(WATCHLIST_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveWatchlist(items: WatchlistItem[]): void {
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(items));
+}
+
+export function addWatchlistItem(item: WatchlistItem): WatchlistItem[] {
+  const items = getWatchlist();
+  items.push(item);
+  saveWatchlist(items);
+  return items;
+}
+
+export function deleteWatchlistItem(id: string): WatchlistItem[] {
+  const items = getWatchlist().filter(w => w.id !== id);
+  saveWatchlist(items);
+  return items;
+}
+
 // --- Import / Export (for sharing between friends) ---
 
 export function exportData(): string {
   return JSON.stringify({
     positions: getPositions(),
     accounts: getAccounts(),
+    watchlist: getWatchlist(),
     exportedAt: new Date().toISOString(),
   }, null, 2);
 }
@@ -114,5 +141,6 @@ export function importData(json: string): { positions: Position[]; accounts: Acc
   const data = JSON.parse(json);
   if (data.positions) savePositions(data.positions);
   if (data.accounts) saveAccounts(data.accounts);
+  if (data.watchlist) saveWatchlist(data.watchlist);
   return { positions: data.positions ?? [], accounts: data.accounts ?? [] };
 }

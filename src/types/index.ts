@@ -27,6 +27,18 @@ export interface Position {
   expiryDate?: string;
   premium?: number;
   contracts?: number;
+  // Close trade fields
+  exitPrice?: number;
+  closedAt?: string;
+  closeNote?: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  ticker: string;
+  theme: Theme;
+  note: string;
+  addedAt: string;
 }
 
 export interface Account {

@@ -11,6 +11,8 @@ import {
   Bell,
   BellOff,
   X,
+  Eye,
+  History,
 } from 'lucide-react';
 import { clearSession, exportData, importData } from '../lib/storage';
 import { hasApiKey } from '../lib/finnhub';
@@ -30,6 +32,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/positions', icon: Table2, label: 'Positions' },
   { to: '/add', icon: PlusCircle, label: 'Add Trade' },
+  { to: '/watchlist', icon: Eye, label: 'Watchlist' },
+  { to: '/history', icon: History, label: 'History' },
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
 
