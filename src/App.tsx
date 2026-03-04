@@ -36,11 +36,9 @@ export default function App() {
     let pos = storage.getPositions();
     let acc = storage.getAccounts();
 
-    // Seed data on first run
-    if (pos.length === 0 && acc.length === 0) {
-      storage.savePositions(SEED_POSITIONS);
+    // Seed accounts on first run
+    if (acc.length === 0) {
       storage.saveAccounts(SEED_ACCOUNTS);
-      pos = SEED_POSITIONS;
       acc = SEED_ACCOUNTS;
     }
 

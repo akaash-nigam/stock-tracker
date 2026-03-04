@@ -28,7 +28,8 @@ export default function AddPosition({ accounts, onSave, editPosition, currentUse
   const [targetPrice, setTargetPrice] = useState(editPosition?.targetPrice?.toString() ?? '');
   const [stopLoss, setStopLoss] = useState(editPosition?.stopLoss?.toString() ?? '');
   const [quantity, setQuantity] = useState(editPosition?.quantity?.toString() ?? '');
-  const [accountId, setAccountId] = useState(editPosition?.accountId ?? accounts[0]?.id ?? '');
+  const userAccountId = currentUser ? accounts.find(a => a.owner === currentUser)?.id ?? accounts[0]?.id ?? '' : accounts[0]?.id ?? '';
+  const [accountId] = useState(editPosition?.accountId ?? userAccountId);
   const [rationale, setRationale] = useState(editPosition?.rationale ?? '');
   const [mood, setMood] = useState(editPosition?.mood ?? '');
   const [status, setStatus] = useState<PositionStatus>(editPosition?.status ?? 'open');
@@ -138,14 +139,6 @@ export default function AddPosition({ accounts, onSave, editPosition, currentUse
             <div>
               <label className="block text-xs text-slate-400 mb-1">Specific Trend</label>
               <input type="text" value={specificTrend} onChange={e => setSpecificTrend(e.target.value)} placeholder="e.g. Data Center Cooling" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Account</label>
-              <select value={accountId} onChange={e => setAccountId(e.target.value)} className={inputClass}>
-                {accounts.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
-                ))}
-              </select>
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Status</label>

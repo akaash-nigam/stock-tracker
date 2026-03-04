@@ -38,6 +38,7 @@ const USER_BADGE_COLORS: Record<string, string> = {
   Soham: 'bg-amber-500/20 text-amber-400',
   Aakash: 'bg-cyan-500/20 text-cyan-400',
   Sarthak: 'bg-rose-500/20 text-rose-400',
+  Amrit: 'bg-indigo-500/20 text-indigo-400',
 };
 
 const navItems = [
