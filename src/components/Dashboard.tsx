@@ -228,6 +228,48 @@ export default function Dashboard({ positions, accounts }: DashboardProps) {
         </div>
       </div>
 
+      {/* Asset Class Breakdown */}
+      <div className="rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <h2 className="text-sm font-semibold text-slate-200 mb-4">
+          Exposure by Asset Class
+        </h2>
+        {(() => {
+          const classMap = new Map<string, number>();
+          for (const p of openPositions) {
+            const val = p.marketValue ?? p.entryPrice * p.quantity;
+            const cls = p.assetClass ?? 'Equity';
+            classMap.set(cls, (classMap.get(cls) ?? 0) + val);
+          }
+          const classColors: Record<string, string> = {
+            'Equity': '#60a5fa', 'ETF': '#34d399', 'Option': '#c084fc',
+            'Metals': '#fbbf24', 'Crypto': '#22d3ee', 'Other': '#94a3b8',
+          };
+          const classData = [...classMap.entries()].map(([name, value]) => ({
+            name, value: Math.round(value), color: classColors[name] ?? '#94a3b8',
+          }));
+          if (classData.length === 0) return <p className="text-slate-500 text-sm">No positions yet</p>;
+          const total = classData.reduce((s, d) => s + d.value, 0);
+          return (
+            <div className="space-y-2">
+              {classData.map(d => (
+                <div key={d.name} className="flex items-center gap-3 text-xs">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  <span className="text-slate-300 w-16">{d.name}</span>
+                  <div className="flex-1 bg-slate-800 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full transition-all"
+                      style={{ width: `${(d.value / total) * 100}%`, backgroundColor: d.color }}
+                    />
+                  </div>
+                  <span className="text-slate-400 tabular-nums w-20 text-right">{formatCurrency(d.value)}</span>
+                  <span className="text-slate-500 tabular-nums w-12 text-right">{((d.value / total) * 100).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Top Movers */}
       <div className="rounded-xl bg-slate-900 border border-slate-800 p-4">
         <h2 className="text-sm font-semibold text-slate-200 mb-3">

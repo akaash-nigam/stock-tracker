@@ -1,13 +1,17 @@
 export type AccountType = 'TFSA' | 'RRSP' | 'Margin' | 'Cash' | 'Other';
 export type Theme = 'AI & Infra' | 'Energy & Resources' | 'Autonomy & Frontier' | 'Socio-Econ' | 'Other';
 export type PositionStatus = 'open' | 'closed';
+export type AssetClass = 'Equity' | 'ETF' | 'Option' | 'Metals' | 'Crypto' | 'Other';
+export type OptionType = 'Call' | 'Put';
+export type StrategyType = 'Long Term' | 'Short Term' | 'Swing' | 'Options' | 'Trend Following' | 'Other';
 
 export interface Position {
   id: string;
   ticker: string;
   theme: Theme;
   specificTrend: string;
-  strategy: string;
+  strategy: StrategyType;
+  assetClass: AssetClass;
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
@@ -17,6 +21,12 @@ export interface Position {
   mood: string;
   status: PositionStatus;
   createdAt: string;
+  // Options fields
+  optionType?: OptionType;
+  strikePrice?: number;
+  expiryDate?: string;
+  premium?: number;
+  contracts?: number;
 }
 
 export interface Account {

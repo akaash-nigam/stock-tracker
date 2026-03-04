@@ -8,6 +8,9 @@ import {
   Download,
   Upload,
   RefreshCw,
+  Bell,
+  BellOff,
+  X,
 } from 'lucide-react';
 import { clearSession, exportData, importData } from '../lib/storage';
 import { hasApiKey } from '../lib/finnhub';
@@ -18,6 +21,9 @@ interface LayoutProps {
   onDataChange: () => void;
   lastUpdated: string | null;
   loading: boolean;
+  alertsOn: boolean;
+  onToggleAlerts: () => void;
+  alertBanner: string | null;
 }
 
 const navItems = [
@@ -27,7 +33,7 @@ const navItems = [
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
 
-export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading }: LayoutProps) {
+export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner }: LayoutProps) {
   function handleExport() {
     const data = exportData();
     const blob = new Blob([data], { type: 'application/json' });
@@ -64,6 +70,16 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
 
   return (
     <div className="min-h-screen bg-slate-950">
+      {/* Alert banner */}
+      {alertBanner && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between">
+          <span className="text-sm text-amber-300">{alertBanner}</span>
+          <button className="text-amber-400 hover:text-amber-200">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top nav */}
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -103,6 +119,17 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
                 Updated {lastUpdated}
               </span>
             )}
+            <button
+              onClick={onToggleAlerts}
+              className={`p-2 rounded-lg transition-colors ${
+                alertsOn
+                  ? 'text-amber-400 bg-amber-400/10 hover:bg-amber-400/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+              title={alertsOn ? 'Alerts ON — click to disable' : 'Alerts OFF — click to enable'}
+            >
+              {alertsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            </button>
             <button
               onClick={onRefresh}
               disabled={loading}

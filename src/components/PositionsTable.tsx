@@ -8,7 +8,7 @@ import {
   Calendar,
   AlertTriangle,
 } from 'lucide-react';
-import type { PositionWithMarket, Account, Theme } from '../types';
+import type { PositionWithMarket, Account, Theme, AssetClass, StrategyType } from '../types';
 import { formatCurrency, formatPercent, pnlColor } from '../lib/utils';
 
 interface PositionsTableProps {
@@ -20,12 +20,23 @@ interface PositionsTableProps {
 
 type SortKey = 'ticker' | 'pnlPercent' | 'pnl' | 'marketValue' | 'theme' | 'entryPrice' | 'currentPrice';
 
+const STRATEGY_TABS: { label: string; value: StrategyType | 'all' }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Long Term', value: 'Long Term' },
+  { label: 'Short Term', value: 'Short Term' },
+  { label: 'Swing', value: 'Swing' },
+  { label: 'Options', value: 'Options' },
+  { label: 'Trend', value: 'Trend Following' },
+];
+
 export default function PositionsTable({ positions, accounts, onDelete, onEdit }: PositionsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('ticker');
   const [sortAsc, setSortAsc] = useState(true);
   const [filterTheme, setFilterTheme] = useState<Theme | 'all'>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'open' | 'closed' | 'all'>('open');
+  const [filterAssetClass, setFilterAssetClass] = useState<AssetClass | 'all'>('all');
+  const [filterStrategy, setFilterStrategy] = useState<StrategyType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const accountMap = new Map(accounts.map(a => [a.id, a]));
@@ -35,6 +46,8 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
     if (filterStatus !== 'all' && p.status !== filterStatus) return false;
     if (filterTheme !== 'all' && p.theme !== filterTheme) return false;
     if (filterAccount !== 'all' && p.accountId !== filterAccount) return false;
+    if (filterAssetClass !== 'all' && p.assetClass !== filterAssetClass) return false;
+    if (filterStrategy !== 'all' && p.strategy !== filterStrategy) return false;
     return true;
   });
 
@@ -59,6 +72,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
   }
 
   const themes: Theme[] = ['AI & Infra', 'Energy & Resources', 'Autonomy & Frontier', 'Socio-Econ', 'Other'];
+  const assetClasses: AssetClass[] = ['Equity', 'ETF', 'Option', 'Metals', 'Crypto', 'Other'];
 
   function SortHeader({ label, sortKeyName, className }: { label: string; sortKeyName: SortKey; className?: string }) {
     return (
@@ -76,6 +90,23 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
 
   return (
     <div className="space-y-4">
+      {/* Strategy tabs */}
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {STRATEGY_TABS.map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => setFilterStrategy(tab.value)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+              filterStrategy === tab.value
+                ? 'bg-blue-500/10 text-blue-400'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <select
@@ -86,6 +117,14 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
           <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="closed">Closed</option>
+        </select>
+        <select
+          value={filterAssetClass}
+          onChange={e => setFilterAssetClass(e.target.value as AssetClass | 'all')}
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200"
+        >
+          <option value="all">All Assets</option>
+          {assetClasses.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select
           value={filterTheme}
@@ -116,6 +155,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
           <thead className="border-b border-slate-800">
             <tr>
               <SortHeader label="Ticker" sortKeyName="ticker" />
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 hidden md:table-cell">Class</th>
               <SortHeader label="Theme" sortKeyName="theme" className="hidden lg:table-cell" />
               <SortHeader label="Price" sortKeyName="currentPrice" />
               <SortHeader label="Entry" sortKeyName="entryPrice" />
@@ -137,6 +177,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
                 ? ((p.currentPrice - p.stopLoss) / p.currentPrice) * 100 < 5
                 : false;
               const isExpanded = expandedId === p.id;
+              const isOption = p.assetClass === 'Option';
 
               return (
                 <tr key={p.id} className="group">
@@ -146,19 +187,42 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
                       className="flex items-center gap-1.5 hover:text-blue-400 transition-colors"
                     >
                       <span className="font-semibold">{p.ticker}</span>
-                      {isNearStop && (
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      {isOption && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                          {p.optionType} {p.strikePrice}
+                        </span>
                       )}
+                      {isNearStop && <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
                       {isExpanded ? <ChevronUp className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
                     </button>
                     {isExpanded && (
-                      <div className="mt-2 text-xs text-slate-400 space-y-1 max-w-xs">
+                      <div className="mt-2 text-xs text-slate-400 space-y-1 max-w-sm">
                         <p><span className="text-slate-500">Trend:</span> {p.specificTrend}</p>
                         <p><span className="text-slate-500">Strategy:</span> {p.strategy}</p>
                         {p.mood && <p><span className="text-slate-500">Mood:</span> {p.mood}</p>}
                         {p.rationale && <p><span className="text-slate-500">Rationale:</span> {p.rationale}</p>}
+                        {isOption && (
+                          <>
+                            <p><span className="text-slate-500">Type:</span> <span className="text-purple-300">{p.optionType}</span></p>
+                            <p><span className="text-slate-500">Strike:</span> ${p.strikePrice?.toFixed(2)}</p>
+                            <p><span className="text-slate-500">Expiry:</span> {p.expiryDate}</p>
+                            <p><span className="text-slate-500">Premium:</span> ${p.premium?.toFixed(2)} x {p.contracts} contracts</p>
+                          </>
+                        )}
                       </div>
                     )}
+                  </td>
+                  <td className="px-3 py-2.5 hidden md:table-cell">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                      p.assetClass === 'Equity' ? 'bg-blue-500/10 text-blue-300' :
+                      p.assetClass === 'ETF' ? 'bg-emerald-500/10 text-emerald-300' :
+                      p.assetClass === 'Option' ? 'bg-purple-500/10 text-purple-300' :
+                      p.assetClass === 'Metals' ? 'bg-amber-500/10 text-amber-300' :
+                      p.assetClass === 'Crypto' ? 'bg-cyan-500/10 text-cyan-300' :
+                      'bg-slate-500/10 text-slate-300'
+                    }`}>
+                      {p.assetClass}
+                    </span>
                   </td>
                   <td className="px-3 py-2.5 text-slate-400 text-xs hidden lg:table-cell">{p.theme}</td>
                   <td className="px-3 py-2.5 tabular-nums">
@@ -176,7 +240,9 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
                     )}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-300">{formatCurrency(p.entryPrice)}</td>
-                  <td className="px-3 py-2.5 tabular-nums text-slate-400">{p.quantity}</td>
+                  <td className="px-3 py-2.5 tabular-nums text-slate-400">
+                    {isOption ? `${p.contracts}c` : p.quantity}
+                  </td>
                   <td className="px-3 py-2.5 tabular-nums text-slate-300">
                     {p.marketValue !== null ? formatCurrency(p.marketValue) : '--'}
                   </td>
@@ -232,7 +298,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit }
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-3 py-8 text-center text-slate-500 text-sm">
+                <td colSpan={14} className="px-3 py-8 text-center text-slate-500 text-sm">
                   No positions found
                 </td>
               </tr>

@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import type { Position, Account, PositionWithMarket, MarketQuote } from './types';
 import * as storage from './lib/storage';
 import { getQuotes, getEarningsForSymbols } from './lib/finnhub';
+import { checkAlerts, sendBrowserNotification, requestNotificationPermission, isAlertsEnabled, setAlertsEnabled } from './lib/alerts';
 import { SEED_POSITIONS, SEED_ACCOUNTS } from './lib/seedData';
 import PinLogin from './components/PinLogin';
 import Layout from './components/Layout';
@@ -20,6 +21,8 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [alertsOn, setAlertsOn] = useState(isAlertsEnabled());
+  const [alertBanner, setAlertBanner] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Load data from storage
@@ -74,6 +77,41 @@ export default function App() {
     const interval = setInterval(fetchMarketData, 60_000);
     return () => clearInterval(interval);
   }, [authenticated, positions.length, fetchMarketData]);
+
+  // Toggle alerts
+  async function toggleAlerts() {
+    if (!alertsOn) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        setAlertBanner('Please enable notifications in your browser settings');
+        setTimeout(() => setAlertBanner(null), 4000);
+        return;
+      }
+    }
+    const newState = !alertsOn;
+    setAlertsEnabled(newState);
+    setAlertsOn(newState);
+  }
+
+  // Check alerts after market data updates
+  useEffect(() => {
+    if (!alertsOn || Object.keys(quotes).length === 0) return;
+    // Build positionsWithMarket for alert checking
+    const withMarket: PositionWithMarket[] = positions.map(p => {
+      const quote = quotes[p.ticker];
+      const currentPrice = quote?.c ?? null;
+      const marketValue = currentPrice !== null ? currentPrice * p.quantity : null;
+      const pnl = marketValue !== null ? marketValue - p.entryPrice * p.quantity : null;
+      const pnlPercent = currentPrice !== null ? ((currentPrice - p.entryPrice) / p.entryPrice) * 100 : null;
+      return { ...p, currentPrice, change: quote?.d ?? null, changePercent: quote?.dp ?? null, pnl, pnlPercent, marketValue, earningsDate: null };
+    });
+    const alerts = checkAlerts(withMarket);
+    for (const alert of alerts) {
+      sendBrowserNotification(alert);
+      setAlertBanner(alert.message);
+      setTimeout(() => setAlertBanner(null), 8000);
+    }
+  }, [quotes, alertsOn, positions]);
 
   // Merge positions with market data
   const positionsWithMarket: PositionWithMarket[] = positions.map(p => {
@@ -142,6 +180,9 @@ export default function App() {
             onDataChange={loadData}
             lastUpdated={lastUpdated}
             loading={loading}
+            alertsOn={alertsOn}
+            onToggleAlerts={toggleAlerts}
+            alertBanner={alertBanner}
           />
         }
       >
