@@ -1,19 +1,32 @@
 import { useState } from 'react';
-import { Lock, Delete } from 'lucide-react';
+import { Lock, Delete, User } from 'lucide-react';
 import { hashPin } from '../lib/utils';
 import { getPinHash, setPinHash, setSession } from '../lib/storage';
+import { USERS } from '../types';
+import type { UserName } from '../types';
 
 interface PinLoginProps {
-  onSuccess: () => void;
+  onSuccess: (user: UserName) => void;
 }
 
-const DEFAULT_PIN_HASH = '7a4b8c3d'; // Will be set on first use
+const USER_COLORS: Record<string, string> = {
+  Vishal: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  Jinesh: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  Hitesh: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  Soham: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  Aakash: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+};
+
+const USER_INITIALS: Record<string, string> = {
+  Vishal: 'V', Jinesh: 'J', Hitesh: 'H', Soham: 'S', Aakash: 'A',
+};
 
 export default function PinLogin({ onSuccess }: PinLoginProps) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isSettingPin, setIsSettingPin] = useState(false);
   const [confirmPin, setConfirmPin] = useState('');
+  const [pinVerified, setPinVerified] = useState(false);
 
   const existingHash = getPinHash();
 
@@ -21,14 +34,12 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     if (pin.length < 4) return;
 
     if (!existingHash) {
-      // First time — set PIN
       if (!isSettingPin) {
         setConfirmPin(pin);
         setIsSettingPin(true);
         setPin('');
         return;
       }
-      // Confirm PIN
       if (pin !== confirmPin) {
         setError('PINs do not match. Try again.');
         setIsSettingPin(false);
@@ -38,20 +49,22 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
       }
       const hash = await hashPin(pin);
       setPinHash(hash);
-      setSession();
-      onSuccess();
+      setPinVerified(true);
       return;
     }
 
-    // Verify PIN
     const hash = await hashPin(pin);
     if (hash === existingHash) {
-      setSession();
-      onSuccess();
+      setPinVerified(true);
     } else {
       setError('Wrong PIN');
       setPin('');
     }
+  }
+
+  function handleSelectUser(user: UserName) {
+    setSession(user);
+    onSuccess(user);
   }
 
   function handleKey(key: string) {
@@ -61,18 +74,48 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     } else if (key === 'enter') {
       handleSubmit();
     } else if (pin.length < 6) {
-      const newPin = pin + key;
-      setPin(newPin);
+      setPin(pin + key);
     }
   }
 
+  // Step 2: User selection
+  if (pinVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4">
+              <User className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-100">Who's trading?</h1>
+            <p className="text-slate-400 mt-1 text-sm">Select your name</p>
+          </div>
+
+          <div className="space-y-3">
+            {USERS.map(user => (
+              <button
+                key={user}
+                onClick={() => handleSelectUser(user)}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${USER_COLORS[user]}`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${USER_COLORS[user]}`}>
+                  {USER_INITIALS[user]}
+                </div>
+                <span className="text-lg font-semibold">{user}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 1: PIN entry
   const dots = Array.from({ length: 6 }, (_, i) => (
     <div
       key={i}
       className={`w-3 h-3 rounded-full border-2 transition-all ${
-        i < pin.length
-          ? 'bg-blue-500 border-blue-500 scale-110'
-          : 'border-slate-600'
+        i < pin.length ? 'bg-blue-500 border-blue-500 scale-110' : 'border-slate-600'
       }`}
     />
   ));
@@ -92,14 +135,12 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
           </p>
         </div>
 
-        {/* PIN dots */}
         <div className="flex justify-center gap-3 mb-6">{dots}</div>
 
         {error && (
           <p className="text-red-400 text-center text-sm mb-4">{error}</p>
         )}
 
-        {/* Number pad */}
         <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(key => (
             <button

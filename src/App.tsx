@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import type { Position, Account, PositionWithMarket, MarketQuote, WatchlistItem } from './types';
+import type { Position, Account, PositionWithMarket, MarketQuote, WatchlistItem, UserName } from './types';
 import * as storage from './lib/storage';
 import { getQuotes, getEarningsForSymbols } from './lib/finnhub';
 import { checkAlerts, sendBrowserNotification, requestNotificationPermission, isAlertsEnabled, setAlertsEnabled } from './lib/alerts';
@@ -17,6 +17,7 @@ import CloseTradeModal from './components/CloseTradeModal';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
+  const [currentUser, setCurrentUser] = useState<UserName | null>(storage.getCurrentUser());
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
@@ -193,7 +194,7 @@ export default function App() {
   }
 
   if (!authenticated) {
-    return <PinLogin onSuccess={() => setAuthenticated(true)} />;
+    return <PinLogin onSuccess={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
   }
 
   const editPosition = editId ? positions.find(p => p.id === editId) ?? null : null;
@@ -214,7 +215,7 @@ export default function App() {
         <Route
           element={
             <Layout
-              onLogout={() => setAuthenticated(false)}
+              onLogout={() => { setAuthenticated(false); setCurrentUser(null); }}
               onRefresh={fetchMarketData}
               onDataChange={loadData}
               lastUpdated={lastUpdated}
@@ -222,6 +223,7 @@ export default function App() {
               alertsOn={alertsOn}
               onToggleAlerts={toggleAlerts}
               alertBanner={alertBanner}
+              currentUser={currentUser}
             />
           }
         >
@@ -248,6 +250,7 @@ export default function App() {
                 accounts={accounts}
                 onSave={handleSavePosition}
                 editPosition={editPosition}
+                currentUser={currentUser}
               />
             }
           />
@@ -259,6 +262,7 @@ export default function App() {
                 quotes={quotes}
                 onAdd={handleAddWatchlistItem}
                 onDelete={handleDeleteWatchlistItem}
+                currentUser={currentUser}
               />
             }
           />

@@ -224,6 +224,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit, 
                         <p><span className="text-slate-500">Strategy:</span> {p.strategy}</p>
                         {p.mood && <p><span className="text-slate-500">Mood:</span> {p.mood}</p>}
                         {p.rationale && <p><span className="text-slate-500">Rationale:</span> {p.rationale}</p>}
+                        {p.addedBy && <p><span className="text-slate-500">Added by:</span> {p.addedBy}</p>}
                         {isOption && (
                           <>
                             <p><span className="text-slate-500">Type:</span> <span className="text-purple-300">{p.optionType}</span></p>

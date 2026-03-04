@@ -17,6 +17,8 @@ import {
 import { clearSession, exportData, importData } from '../lib/storage';
 import { hasApiKey } from '../lib/finnhub';
 
+import type { UserName } from '../types';
+
 interface LayoutProps {
   onLogout: () => void;
   onRefresh: () => void;
@@ -26,7 +28,16 @@ interface LayoutProps {
   alertsOn: boolean;
   onToggleAlerts: () => void;
   alertBanner: string | null;
+  currentUser: UserName | null;
 }
+
+const USER_BADGE_COLORS: Record<string, string> = {
+  Vishal: 'bg-blue-500/20 text-blue-400',
+  Jinesh: 'bg-emerald-500/20 text-emerald-400',
+  Hitesh: 'bg-purple-500/20 text-purple-400',
+  Soham: 'bg-amber-500/20 text-amber-400',
+  Aakash: 'bg-cyan-500/20 text-cyan-400',
+};
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -37,7 +48,7 @@ const navItems = [
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
 
-export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner }: LayoutProps) {
+export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner, currentUser }: LayoutProps) {
   function handleExport() {
     const data = exportData();
     const blob = new Blob([data], { type: 'application/json' });
@@ -113,8 +124,13 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
           </div>
 
           <div className="flex items-center gap-2">
+            {currentUser && (
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${USER_BADGE_COLORS[currentUser] ?? 'bg-slate-500/20 text-slate-400'}`}>
+                {currentUser}
+              </span>
+            )}
             {!hasApiKey() && (
-              <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded">
+              <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded hidden sm:block">
                 No API key
               </span>
             )}

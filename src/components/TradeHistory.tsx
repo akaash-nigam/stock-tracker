@@ -81,6 +81,7 @@ export default function TradeHistory({ positions, accounts }: TradeHistoryProps)
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">P&L %</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 hidden md:table-cell">Account</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 hidden md:table-cell">Closed</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 hidden md:table-cell">By</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 hidden lg:table-cell">Note</th>
               </tr>
             </thead>
@@ -108,6 +109,7 @@ export default function TradeHistory({ positions, accounts }: TradeHistoryProps)
                     <td className="px-3 py-2.5 text-xs text-slate-500 hidden md:table-cell">
                       {p.closedAt ? new Date(p.closedAt).toLocaleDateString() : '--'}
                     </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-400 hidden md:table-cell">{p.addedBy ?? '--'}</td>
                     <td className="px-3 py-2.5 text-xs text-slate-500 hidden lg:table-cell max-w-[200px] truncate">
                       {p.closeNote ?? '--'}
                     </td>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, TrendingUp, TrendingDown, Eye } from 'lucide-react';
-import type { WatchlistItem, MarketQuote, Theme } from '../types';
+import type { WatchlistItem, MarketQuote, Theme, UserName } from '../types';
 import { generateId, formatCurrency, formatPercent, pnlColor } from '../lib/utils';
 
 interface WatchlistProps {
@@ -8,11 +8,12 @@ interface WatchlistProps {
   quotes: Record<string, MarketQuote>;
   onAdd: (item: WatchlistItem) => void;
   onDelete: (id: string) => void;
+  currentUser?: UserName | null;
 }
 
 const THEMES: Theme[] = ['AI & Infra', 'Energy & Resources', 'Autonomy & Frontier', 'Socio-Econ', 'Other'];
 
-export default function Watchlist({ items, quotes, onAdd, onDelete }: WatchlistProps) {
+export default function Watchlist({ items, quotes, onAdd, onDelete, currentUser }: WatchlistProps) {
   const [showForm, setShowForm] = useState(false);
   const [ticker, setTicker] = useState('');
   const [theme, setTheme] = useState<Theme>('AI & Infra');
@@ -27,6 +28,7 @@ export default function Watchlist({ items, quotes, onAdd, onDelete }: WatchlistP
       theme,
       note,
       addedAt: new Date().toISOString(),
+      addedBy: currentUser ?? undefined,
     });
     setTicker('');
     setNote('');
@@ -150,6 +152,9 @@ export default function Watchlist({ items, quotes, onAdd, onDelete }: WatchlistP
                     )}
                     {item.note && (
                       <p className="text-xs text-slate-500 mt-2 truncate">{item.note}</p>
+                    )}
+                    {item.addedBy && (
+                      <p className="text-[10px] text-slate-600 mt-1">Added by {item.addedBy}</p>
                     )}
                   </div>
                 );

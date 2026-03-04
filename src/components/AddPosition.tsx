@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, X } from 'lucide-react';
-import type { Position, Account, Theme, PositionStatus, AssetClass, StrategyType, OptionType } from '../types';
+import type { Position, Account, Theme, PositionStatus, AssetClass, StrategyType, OptionType, UserName } from '../types';
 import { generateId } from '../lib/utils';
 
 interface AddPositionProps {
   accounts: Account[];
   onSave: (position: Position) => void;
   editPosition?: Position | null;
+  currentUser?: UserName | null;
 }
 
 const THEMES: Theme[] = ['AI & Infra', 'Energy & Resources', 'Autonomy & Frontier', 'Socio-Econ', 'Other'];
 const ASSET_CLASSES: AssetClass[] = ['Equity', 'ETF', 'Option', 'Metals', 'Crypto', 'Other'];
 const STRATEGIES: StrategyType[] = ['Long Term', 'Short Term', 'Swing', 'Options', 'Trend Following', 'Other'];
 
-export default function AddPosition({ accounts, onSave, editPosition }: AddPositionProps) {
+export default function AddPosition({ accounts, onSave, editPosition, currentUser }: AddPositionProps) {
   const navigate = useNavigate();
   const isEdit = !!editPosition;
 
@@ -61,6 +62,7 @@ export default function AddPosition({ accounts, onSave, editPosition }: AddPosit
       mood,
       status,
       createdAt: editPosition?.createdAt ?? new Date().toISOString(),
+      addedBy: editPosition?.addedBy ?? currentUser ?? undefined,
       ...(isOption && {
         optionType,
         strikePrice: parseFloat(strikePrice) || 0,

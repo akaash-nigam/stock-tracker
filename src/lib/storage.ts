@@ -1,4 +1,4 @@
-import type { Position, Account, WatchlistItem } from '../types';
+import type { Position, Account, WatchlistItem, UserName } from '../types';
 
 const POSITIONS_KEY = 'st_positions';
 const ACCOUNTS_KEY = 'st_accounts';
@@ -91,10 +91,18 @@ export function isSessionValid(): boolean {
   } catch { return false; }
 }
 
-export function setSession(): void {
-  // Session lasts 7 days
+export function getCurrentUser(): UserName | null {
+  const session = localStorage.getItem(SESSION_KEY);
+  if (!session) return null;
+  try {
+    const { user } = JSON.parse(session);
+    return user ?? null;
+  } catch { return null; }
+}
+
+export function setSession(user: UserName): void {
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt }));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ expiresAt, user }));
 }
 
 export function clearSession(): void {

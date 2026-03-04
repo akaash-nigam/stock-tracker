@@ -1,3 +1,6 @@
+export const USERS = ['Vishal', 'Jinesh', 'Hitesh', 'Soham', 'Aakash'] as const;
+export type UserName = (typeof USERS)[number];
+
 export type AccountType = 'TFSA' | 'RRSP' | 'Margin' | 'Cash' | 'Other';
 export type Theme = 'AI & Infra' | 'Energy & Resources' | 'Autonomy & Frontier' | 'Socio-Econ' | 'Other';
 export type PositionStatus = 'open' | 'closed';
@@ -31,6 +34,8 @@ export interface Position {
   exitPrice?: number;
   closedAt?: string;
   closeNote?: string;
+  // User tracking
+  addedBy?: UserName;
 }
 
 export interface WatchlistItem {
@@ -39,6 +44,7 @@ export interface WatchlistItem {
   theme: Theme;
   note: string;
   addedAt: string;
+  addedBy?: UserName;
 }
 
 export interface Account {
