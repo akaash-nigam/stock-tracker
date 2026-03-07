@@ -1,4 +1,4 @@
-import type { Position, Account, WatchlistItem, UserName } from '../types';
+import type { Position, Account, WatchlistItem, UserName, BtrAlert, BtrHolding, BtrReport } from '../types';
 
 const API_KEY_KEY = 'st_finnhub_api_key';
 const CURRENCY_KEY = 'st_currency';
@@ -186,6 +186,42 @@ export function saveSnapshot(snapshot: PortfolioSnapshot): void {
   // Keep last 365 days
   const trimmed = snapshots.slice(-365);
   localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(trimmed));
+}
+
+// --- Bear Traps ---
+
+const BTR_ALERTS_KEY = 'st_btr_alerts';
+const BTR_HOLDINGS_KEY = 'st_btr_holdings';
+const BTR_REPORTS_KEY = 'st_btr_reports';
+
+export function getBtrAlerts(): BtrAlert[] {
+  const raw = localStorage.getItem(BTR_ALERTS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveBtrAlerts(alerts: BtrAlert[]): void {
+  localStorage.setItem(BTR_ALERTS_KEY, JSON.stringify(alerts));
+}
+
+export function getBtrHoldings(): BtrHolding[] {
+  const raw = localStorage.getItem(BTR_HOLDINGS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveBtrHoldings(holdings: BtrHolding[]): void {
+  localStorage.setItem(BTR_HOLDINGS_KEY, JSON.stringify(holdings));
+}
+
+export function getBtrReports(): BtrReport[] {
+  const raw = localStorage.getItem(BTR_REPORTS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveBtrReports(reports: BtrReport[]): void {
+  localStorage.setItem(BTR_REPORTS_KEY, JSON.stringify(reports));
 }
 
 // --- Import / Export (for sharing between friends) ---

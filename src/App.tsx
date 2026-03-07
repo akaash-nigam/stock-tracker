@@ -15,7 +15,10 @@ import AccountManager from './components/AccountManager';
 import Watchlist from './components/Watchlist';
 import TradeHistory from './components/TradeHistory';
 import CloseTradeModal from './components/CloseTradeModal';
+import BearTraps from './components/BearTraps';
 import { CurrencyProvider } from './lib/CurrencyContext';
+import { SEED_BTR_ALERTS, SEED_BTR_HOLDINGS, SEED_BTR_REPORT } from './lib/btrSeedData';
+import type { BtrAlert, BtrHolding, BtrReport } from './types';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
@@ -23,6 +26,9 @@ export default function App() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [btrAlerts, setBtrAlerts] = useState<BtrAlert[]>([]);
+  const [btrHoldings, setBtrHoldings] = useState<BtrHolding[]>([]);
+  const [btrReports, setBtrReports] = useState<BtrReport[]>([]);
   const [quotes, setQuotes] = useState<Record<string, MarketQuote>>({});
   const [earnings, setEarnings] = useState<Record<string, string>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -48,13 +54,30 @@ export default function App() {
     setPositions(pos);
     setAccounts(acc);
     setWatchlist(storage.getWatchlist());
+
+    // Load Bear Traps data
+    let bAlerts = storage.getBtrAlerts();
+    let bHoldings = storage.getBtrHoldings();
+    let bReports = storage.getBtrReports();
+    if (bAlerts.length === 0 && bHoldings.length === 0) {
+      storage.saveBtrAlerts(SEED_BTR_ALERTS);
+      storage.saveBtrHoldings(SEED_BTR_HOLDINGS);
+      storage.saveBtrReports([SEED_BTR_REPORT]);
+      bAlerts = SEED_BTR_ALERTS;
+      bHoldings = SEED_BTR_HOLDINGS;
+      bReports = [SEED_BTR_REPORT];
+    }
+    setBtrAlerts(bAlerts);
+    setBtrHoldings(bHoldings);
+    setBtrReports(bReports);
   }, []);
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {
     const openPositions = positions.filter(p => p.status === 'open');
     const watchlistTickers = watchlist.map(w => w.ticker);
-    const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers])];
+    const btrTickers = btrHoldings.map(h => h.ticker);
+    const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers, ...btrTickers])];
     if (allSymbols.length === 0) return;
 
     setLoading(true);
@@ -87,7 +110,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [positions, watchlist]);
+  }, [positions, watchlist, btrHoldings]);
 
   // Initial load
   useEffect(() => {
@@ -96,12 +119,12 @@ export default function App() {
 
   // Fetch market data on load and every 60s
   useEffect(() => {
-    if (!authenticated || (positions.length === 0 && watchlist.length === 0)) return;
+    if (!authenticated || (positions.length === 0 && watchlist.length === 0 && btrHoldings.length === 0)) return;
 
     fetchMarketData();
     const interval = setInterval(fetchMarketData, 60_000);
     return () => clearInterval(interval);
-  }, [authenticated, positions.length, watchlist.length, fetchMarketData]);
+  }, [authenticated, positions.length, watchlist.length, btrHoldings.length, fetchMarketData]);
 
   // Toggle alerts
   async function toggleAlerts() {
@@ -210,6 +233,20 @@ export default function App() {
     setWatchlist(storage.deleteWatchlistItem(id));
   }
 
+  // Bear Traps CRUD
+  function handleSaveBtrAlerts(alerts: BtrAlert[]) {
+    storage.saveBtrAlerts(alerts);
+    setBtrAlerts(alerts);
+  }
+  function handleSaveBtrHoldings(holdings: BtrHolding[]) {
+    storage.saveBtrHoldings(holdings);
+    setBtrHoldings(holdings);
+  }
+  function handleSaveBtrReports(reports: BtrReport[]) {
+    storage.saveBtrReports(reports);
+    setBtrReports(reports);
+  }
+
   if (!authenticated) {
     return <PinLogin onSuccess={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
   }
@@ -292,6 +329,20 @@ export default function App() {
               <TradeHistory
                 positions={positions}
                 accounts={accounts}
+              />
+            }
+          />
+          <Route
+            path="beartraps"
+            element={
+              <BearTraps
+                alerts={btrAlerts}
+                holdings={btrHoldings}
+                reports={btrReports}
+                quotes={quotes}
+                onSaveAlerts={handleSaveBtrAlerts}
+                onSaveHoldings={handleSaveBtrHoldings}
+                onSaveReports={handleSaveBtrReports}
               />
             }
           />

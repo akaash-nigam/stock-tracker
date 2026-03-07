@@ -87,6 +87,49 @@ export interface PositionWithMarket extends Position {
   earningsDate: string | null;
 }
 
+// --- Bear Traps Report ---
+
+export type BtrAction = 'Buy' | 'Sell';
+export type BtrTimeframe = 'short' | 'long';
+
+export interface BtrAlert {
+  id: string;
+  action: BtrAction;
+  size: string; // '1/3', '1/4', 'All'
+  ticker: string;
+  description: string;
+  price?: number;
+  closingPnl?: string;
+  date: string;
+  sector: string;
+}
+
+export interface BtrHolding {
+  id: string;
+  position: string; // '1/3', '2/3', '3/3'
+  ticker: string;
+  description: string;
+  sector: string;
+  timeframe: BtrTimeframe;
+}
+
+export interface BtrReport {
+  id: string;
+  date: string;
+  title: string;
+  keyThemes: string[];
+  performance: {
+    hc3m: string;
+    hc12m: string;
+    sp3m: string;
+    sp12m: string;
+    realizedSells12m: string;
+    hedgeRealized12m: string;
+  };
+  allocation: Record<string, number>;
+  notes: string;
+}
+
 export interface AppState {
   positions: Position[];
   accounts: Account[];

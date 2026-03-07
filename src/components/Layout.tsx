@@ -16,6 +16,7 @@ import {
   History,
   Settings,
   Key,
+  FileText,
 } from 'lucide-react';
 import { clearSession, exportData, importData, getFinnhubApiKey, setFinnhubApiKey, getCurrency, setCurrency as saveCurrency } from '../lib/storage';
 import type { Currency } from '../lib/storage';
@@ -54,6 +55,7 @@ const navItems = [
   { to: '/add', icon: PlusCircle, label: 'Add Trade' },
   { to: '/watchlist', icon: Eye, label: 'Watchlist' },
   { to: '/history', icon: History, label: 'History' },
+  { to: '/beartraps', icon: FileText, label: 'Bear Traps' },
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
 
