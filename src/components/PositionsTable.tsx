@@ -10,8 +10,10 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
-import type { PositionWithMarket, Account, Theme, AssetClass, StrategyType } from '../types';
-import { formatCurrency, formatPercent, pnlColor } from '../lib/utils';
+import type { PositionWithMarket, Account, Theme, AssetClass, StrategyType, UserName } from '../types';
+import { USERS } from '../types';
+import { formatCurrency as fc, formatPercent, pnlColor } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
 
 interface PositionsTableProps {
   positions: PositionWithMarket[];
@@ -33,6 +35,8 @@ const STRATEGY_TABS: { label: string; value: StrategyType | 'all' }[] = [
 ];
 
 export default function PositionsTable({ positions, accounts, onDelete, onEdit, onClose }: PositionsTableProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   const [sortKey, setSortKey] = useState<SortKey>('ticker');
   const [sortAsc, setSortAsc] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +45,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit, 
   const [filterStatus, setFilterStatus] = useState<'open' | 'closed' | 'all'>('open');
   const [filterAssetClass, setFilterAssetClass] = useState<AssetClass | 'all'>('all');
   const [filterStrategy, setFilterStrategy] = useState<StrategyType | 'all'>('all');
+  const [filterUser, setFilterUser] = useState<UserName | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const accountMap = new Map(accounts.map(a => [a.id, a]));
@@ -53,6 +58,7 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit, 
     if (filterAccount !== 'all' && p.accountId !== filterAccount) return false;
     if (filterAssetClass !== 'all' && p.assetClass !== filterAssetClass) return false;
     if (filterStrategy !== 'all' && p.strategy !== filterStrategy) return false;
+    if (filterUser !== 'all' && p.addedBy !== filterUser) return false;
     if (q && !p.ticker.toLowerCase().includes(q) && !p.specificTrend.toLowerCase().includes(q) && !p.rationale.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -158,14 +164,12 @@ export default function PositionsTable({ positions, accounts, onDelete, onEdit, 
           {themes.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select
-          value={filterAccount}
-          onChange={e => setFilterAccount(e.target.value)}
+          value={filterUser}
+          onChange={e => setFilterUser(e.target.value as UserName | 'all')}
           className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200"
         >
-          <option value="all">All Accounts</option>
-          {accounts.map(a => (
-            <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
-          ))}
+          <option value="all">All Users</option>
+          {USERS.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <span className="text-xs text-slate-500 self-center ml-auto">
           {filtered.length} position{filtered.length !== 1 ? 's' : ''}

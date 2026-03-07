@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,8 +14,11 @@ import {
   X,
   Eye,
   History,
+  Settings,
+  Key,
 } from 'lucide-react';
-import { clearSession, exportData, importData } from '../lib/storage';
+import { clearSession, exportData, importData, getFinnhubApiKey, setFinnhubApiKey, getCurrency, setCurrency as saveCurrency } from '../lib/storage';
+import type { Currency } from '../lib/storage';
 import { hasApiKey } from '../lib/finnhub';
 
 import type { UserName } from '../types';
@@ -29,6 +33,9 @@ interface LayoutProps {
   onToggleAlerts: () => void;
   alertBanner: string | null;
   currentUser: UserName | null;
+  currency: Currency;
+  onCurrencyChange: (c: Currency) => void;
+  onApiKeyChange: () => void;
 }
 
 const USER_BADGE_COLORS: Record<string, string> = {
@@ -50,7 +57,22 @@ const navItems = [
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
 
-export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner, currentUser }: LayoutProps) {
+export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner, currentUser, currency, onCurrencyChange, onApiKeyChange }: LayoutProps) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(getFinnhubApiKey() ?? '');
+
+  function handleSaveApiKey() {
+    setFinnhubApiKey(apiKeyInput.trim());
+    onApiKeyChange();
+    setShowSettings(false);
+  }
+
+  function handleCurrencyToggle() {
+    const next = currency === 'USD' ? 'CAD' : 'USD';
+    saveCurrency(next);
+    onCurrencyChange(next);
+  }
+
   function handleExport() {
     const data = exportData();
     const blob = new Blob([data], { type: 'application/json' });
@@ -131,10 +153,20 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
                 {currentUser}
               </span>
             )}
+            <button
+              onClick={handleCurrencyToggle}
+              className="px-2 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+              title="Toggle currency"
+            >
+              {currency}
+            </button>
             {!hasApiKey() && (
-              <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded hidden sm:block">
-                No API key
-              </span>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded hidden sm:block hover:bg-amber-400/20 transition-colors"
+              >
+                Set API Key
+              </button>
             )}
             {lastUpdated && (
               <span className="text-xs text-slate-500 hidden sm:block">
@@ -175,6 +207,13 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
               <Upload className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
               onClick={handleLogout}
               className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
               title="Logout"
@@ -203,6 +242,56 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
           ))}
         </nav>
       </header>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-100">Settings</h2>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                  <Key className="w-4 h-4" />
+                  Finnhub API Key
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Get a free key at <a href="https://finnhub.io/register" target="_blank" rel="noopener" className="text-blue-400 underline">finnhub.io/register</a> (60 calls/min, 15-min delayed)
+                </p>
+                <input
+                  type="text"
+                  value={apiKeyInput}
+                  onChange={e => setApiKeyInput(e.target.value)}
+                  placeholder="Enter your Finnhub API key"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-300">Currency</p>
+                  <p className="text-xs text-slate-500">Display prices in USD or CAD</p>
+                </div>
+                <button
+                  onClick={handleCurrencyToggle}
+                  className="px-3 py-1.5 rounded-lg text-sm font-bold bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  {currency}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveApiKey}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 text-sm font-semibold transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">

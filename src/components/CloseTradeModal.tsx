@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { PositionWithMarket } from '../types';
-import { formatCurrency, formatPercent, pnlColor } from '../lib/utils';
+import { formatCurrency as fc, formatPercent, pnlColor } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
 
 interface CloseTradeModalProps {
   position: PositionWithMarket;
@@ -10,6 +11,8 @@ interface CloseTradeModalProps {
 }
 
 export default function CloseTradeModal({ position, onClose, onConfirm }: CloseTradeModalProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   const [exitPrice, setExitPrice] = useState(position.currentPrice?.toString() ?? '');
   const [closeNote, setCloseNote] = useState('');
 

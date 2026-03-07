@@ -6,9 +6,11 @@ import {
   Wallet,
   Activity,
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from 'recharts';
 import type { PositionWithMarket, Account } from '../types';
-import { formatCurrency, formatPercent, pnlColor, pnlBg } from '../lib/utils';
+import { formatCurrency as fc, formatPercent, pnlColor, pnlBg } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
+import { getSnapshots } from '../lib/storage';
 
 interface DashboardProps {
   positions: PositionWithMarket[];
@@ -26,6 +28,8 @@ const THEME_COLORS: Record<string, string> = {
 const PIE_COLORS = ['#60a5fa', '#f59e0b', '#c084fc', '#34d399', '#94a3b8'];
 
 export default function Dashboard({ positions, accounts }: DashboardProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   const openPositions = positions.filter(p => p.status === 'open');
 
   // Summary calculations
@@ -227,6 +231,38 @@ export default function Dashboard({ positions, accounts }: DashboardProps) {
           )}
         </div>
       </div>
+
+      {/* Portfolio Performance Over Time */}
+      {(() => {
+        const snapshots = getSnapshots();
+        if (snapshots.length < 2) return null;
+        const chartData = snapshots.map(s => ({
+          date: s.date.slice(5), // MM-DD
+          value: Math.round(s.totalValue),
+          invested: Math.round(s.totalInvested),
+          pnl: Math.round(s.pnl),
+        }));
+        return (
+          <div className="rounded-xl bg-slate-900 border border-slate-800 p-4">
+            <h2 className="text-sm font-semibold text-slate-200 mb-4">Portfolio Performance</h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#334155' }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#334155' }} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value))}
+                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
+                  itemStyle={{ color: '#f1f5f9' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Line type="monotone" dataKey="value" name="Market Value" stroke="#34d399" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="invested" name="Invested" stroke="#60a5fa" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
 
       {/* Asset Class Breakdown */}
       <div className="rounded-xl bg-slate-900 border border-slate-800 p-4">

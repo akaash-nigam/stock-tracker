@@ -1,5 +1,8 @@
 import type { Position, Account, WatchlistItem, UserName } from '../types';
 
+const API_KEY_KEY = 'st_finnhub_api_key';
+const CURRENCY_KEY = 'st_currency';
+const SNAPSHOTS_KEY = 'st_portfolio_snapshots';
 const POSITIONS_KEY = 'st_positions';
 const ACCOUNTS_KEY = 'st_accounts';
 const WATCHLIST_KEY = 'st_watchlist';
@@ -132,6 +135,57 @@ export function deleteWatchlistItem(id: string): WatchlistItem[] {
   const items = getWatchlist().filter(w => w.id !== id);
   saveWatchlist(items);
   return items;
+}
+
+// --- API Key ---
+
+export function getFinnhubApiKey(): string | null {
+  return localStorage.getItem(API_KEY_KEY);
+}
+
+export function setFinnhubApiKey(key: string): void {
+  localStorage.setItem(API_KEY_KEY, key);
+}
+
+// --- Currency ---
+
+export type Currency = 'USD' | 'CAD';
+
+export function getCurrency(): Currency {
+  return (localStorage.getItem(CURRENCY_KEY) as Currency) ?? 'USD';
+}
+
+export function setCurrency(currency: Currency): void {
+  localStorage.setItem(CURRENCY_KEY, currency);
+}
+
+// --- Portfolio Snapshots ---
+
+export interface PortfolioSnapshot {
+  date: string; // YYYY-MM-DD
+  totalValue: number;
+  totalInvested: number;
+  pnl: number;
+}
+
+export function getSnapshots(): PortfolioSnapshot[] {
+  const raw = localStorage.getItem(SNAPSHOTS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveSnapshot(snapshot: PortfolioSnapshot): void {
+  const snapshots = getSnapshots();
+  // Replace if same date exists, otherwise append
+  const idx = snapshots.findIndex(s => s.date === snapshot.date);
+  if (idx >= 0) {
+    snapshots[idx] = snapshot;
+  } else {
+    snapshots.push(snapshot);
+  }
+  // Keep last 365 days
+  const trimmed = snapshots.slice(-365);
+  localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(trimmed));
 }
 
 // --- Import / Export (for sharing between friends) ---

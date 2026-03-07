@@ -1,6 +1,10 @@
 import type { MarketQuote } from '../types';
+import { getFinnhubApiKey } from './storage';
 
-const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY as string | undefined;
+function getApiKey(): string | undefined {
+  return getFinnhubApiKey() ?? (import.meta.env.VITE_FINNHUB_API_KEY as string | undefined) ?? undefined;
+}
+
 const BASE_URL = 'https://finnhub.io/api/v1';
 
 // Simple rate limiter: max 55 calls/min (leave buffer from 60 limit)
@@ -18,9 +22,10 @@ async function rateLimitedFetch(url: string): Promise<Response> {
 }
 
 export async function getQuote(symbol: string): Promise<MarketQuote | null> {
-  if (!API_KEY) return null;
+  const key = getApiKey();
+  if (!key) return null;
   try {
-    const res = await rateLimitedFetch(`${BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${API_KEY}`);
+    const res = await rateLimitedFetch(`${BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`);
     if (!res.ok) return null;
     const data = await res.json();
     // Finnhub returns c=0 for invalid symbols
@@ -62,10 +67,11 @@ export async function getEarningsCalendar(
   from: string,
   to: string
 ): Promise<Record<string, string>> {
-  if (!API_KEY) return {};
+  const key = getApiKey();
+  if (!key) return {};
   try {
     const res = await rateLimitedFetch(
-      `${BASE_URL}/calendar/earnings?from=${from}&to=${to}&token=${API_KEY}`
+      `${BASE_URL}/calendar/earnings?from=${from}&to=${to}&token=${key}`
     );
     if (!res.ok) return {};
     const data: EarningsCalendarResponse = await res.json();
@@ -84,7 +90,7 @@ export async function getEarningsCalendar(
 
 // Fetch earnings for specific symbols (uses per-symbol endpoint)
 export async function getEarningsForSymbols(symbols: string[]): Promise<Record<string, string>> {
-  if (!API_KEY) return {};
+  if (!getApiKey()) return {};
   // Use calendar endpoint with date range (more efficient — 1 call)
   const today = new Date();
   const from = today.toISOString().slice(0, 10);
@@ -106,5 +112,5 @@ export async function getEarningsForSymbols(symbols: string[]): Promise<Record<s
 }
 
 export function hasApiKey(): boolean {
-  return !!API_KEY;
+  return !!getApiKey();
 }

@@ -2,13 +2,16 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-export function formatCurrency(value: number): string {
+const CAD_RATE = 1.44; // approximate USD -> CAD conversion rate
+
+export function formatCurrency(value: number, currency: 'USD' | 'CAD' = 'USD'): string {
+  const converted = currency === 'CAD' ? value * CAD_RATE : value;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(converted);
 }
 
 export function formatPercent(value: number): string {

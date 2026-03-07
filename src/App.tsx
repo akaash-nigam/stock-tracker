@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import type { Position, Account, PositionWithMarket, MarketQuote, WatchlistItem, UserName } from './types';
 import * as storage from './lib/storage';
+import type { Currency } from './lib/storage';
 import { getQuotes, getEarningsForSymbols } from './lib/finnhub';
 import { checkAlerts, sendBrowserNotification, requestNotificationPermission, isAlertsEnabled, setAlertsEnabled } from './lib/alerts';
 import { SEED_POSITIONS, SEED_ACCOUNTS } from './lib/seedData';
@@ -14,6 +15,7 @@ import AccountManager from './components/AccountManager';
 import Watchlist from './components/Watchlist';
 import TradeHistory from './components/TradeHistory';
 import CloseTradeModal from './components/CloseTradeModal';
+import { CurrencyProvider } from './lib/CurrencyContext';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
@@ -29,6 +31,7 @@ export default function App() {
   const [closeId, setCloseId] = useState<string | null>(null);
   const [alertsOn, setAlertsOn] = useState(isAlertsEnabled());
   const [alertBanner, setAlertBanner] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<Currency>(storage.getCurrency());
   const navigate = useNavigate();
 
   // Load data from storage
@@ -63,6 +66,22 @@ export default function App() {
       setQuotes(newQuotes);
       setEarnings(prev => ({ ...prev, ...newEarnings }));
       setLastUpdated(new Date().toLocaleTimeString());
+
+      // Save portfolio snapshot
+      const openPos = positions.filter(p => p.status === 'open');
+      const totalInvested = openPos.reduce((s, p) => s + p.entryPrice * p.quantity, 0);
+      const totalValue = openPos.reduce((s, p) => {
+        const price = newQuotes[p.ticker]?.c;
+        return s + (price ? price * p.quantity : p.entryPrice * p.quantity);
+      }, 0);
+      if (totalInvested > 0) {
+        storage.saveSnapshot({
+          date: new Date().toISOString().slice(0, 10),
+          totalValue,
+          totalInvested,
+          pnl: totalValue - totalInvested,
+        });
+      }
     } catch {
       // Silently fail
     } finally {
@@ -199,7 +218,7 @@ export default function App() {
   const closePosition = closeId ? positionsWithMarket.find(p => p.id === closeId) ?? null : null;
 
   return (
-    <>
+    <CurrencyProvider value={currency}>
       {/* Close trade modal */}
       {closePosition && (
         <CloseTradeModal
@@ -222,6 +241,9 @@ export default function App() {
               onToggleAlerts={toggleAlerts}
               alertBanner={alertBanner}
               currentUser={currentUser}
+              currency={currency}
+              onCurrencyChange={setCurrency}
+              onApiKeyChange={fetchMarketData}
             />
           }
         >
@@ -287,6 +309,6 @@ export default function App() {
           />
         </Route>
       </Routes>
-    </>
+    </CurrencyProvider>
   );
 }

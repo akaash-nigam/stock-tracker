@@ -1,6 +1,7 @@
 import { History, TrendingUp, TrendingDown } from 'lucide-react';
 import type { Position, Account } from '../types';
-import { formatCurrency, formatPercent, pnlColor, pnlBg } from '../lib/utils';
+import { formatCurrency as fc, formatPercent, pnlColor, pnlBg } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
 
 interface TradeHistoryProps {
   positions: Position[];
@@ -8,6 +9,8 @@ interface TradeHistoryProps {
 }
 
 export default function TradeHistory({ positions, accounts }: TradeHistoryProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   const closedTrades = positions
     .filter(p => p.status === 'closed')
     .sort((a, b) => (b.closedAt ?? b.createdAt).localeCompare(a.closedAt ?? a.createdAt));

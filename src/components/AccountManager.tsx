@@ -1,6 +1,7 @@
 import { Wallet } from 'lucide-react';
 import type { Account, PositionWithMarket } from '../types';
-import { formatCurrency, pnlColor } from '../lib/utils';
+import { formatCurrency as fc, pnlColor } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
 
 interface AccountManagerProps {
   accounts: Account[];
@@ -21,6 +22,8 @@ const USER_COLORS: Record<string, string> = {
 };
 
 export default function AccountManager({ accounts, positions }: AccountManagerProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   function getAccountStats(accountId: string) {
     const accPositions = positions.filter(p => p.accountId === accountId && p.status === 'open');
     const closedPositions = positions.filter(p => p.accountId === accountId && p.status === 'closed');

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plus, Trash2, TrendingUp, TrendingDown, Eye } from 'lucide-react';
 import type { WatchlistItem, MarketQuote, Theme, UserName } from '../types';
-import { generateId, formatCurrency, formatPercent, pnlColor } from '../lib/utils';
+import { generateId, formatCurrency as fc, formatPercent, pnlColor } from '../lib/utils';
+import { useCurrency } from '../lib/CurrencyContext';
 
 interface WatchlistProps {
   items: WatchlistItem[];
@@ -14,6 +15,8 @@ interface WatchlistProps {
 const THEMES: Theme[] = ['AI & Infra', 'Energy & Resources', 'Autonomy & Frontier', 'Socio-Econ', 'Other'];
 
 export default function Watchlist({ items, quotes, onAdd, onDelete, currentUser }: WatchlistProps) {
+  const currency = useCurrency();
+  const formatCurrency = (v: number) => fc(v, currency);
   const [showForm, setShowForm] = useState(false);
   const [ticker, setTicker] = useState('');
   const [theme, setTheme] = useState<Theme>('AI & Infra');
