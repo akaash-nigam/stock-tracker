@@ -1,4 +1,4 @@
-import { FileText, Tv, Landmark, Eye } from 'lucide-react';
+import { FileText, Tv, Landmark, Eye, TreePine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { TrackerId } from '../types';
 
@@ -61,6 +61,14 @@ export const COLOR_CLASSES: Record<string, {
     bgSolidHover: 'hover:bg-orange-500',
     focusRing: 'focus:ring-orange-500/50',
     border: 'border-orange-500/20',
+  },
+  emerald: {
+    bgLight: 'bg-emerald-500/10',
+    text: 'text-emerald-400',
+    bgSolid: 'bg-emerald-500',
+    bgSolidHover: 'hover:bg-emerald-400',
+    focusRing: 'focus:ring-emerald-500/50',
+    border: 'border-emerald-500/20',
   },
 };
 
@@ -141,6 +149,25 @@ export const TRACKER_CONFIGS: Record<TrackerId, TrackerConfig> = {
       hedgeLabel: 'Short Book',
     },
   },
+  pinetree: {
+    id: 'pinetree',
+    title: 'PineTree Macro',
+    subtitle: "Ritesh Jain — Global Macro & India Insights",
+    icon: TreePine,
+    accentColor: 'emerald',
+    accentHex: '#10b981',
+    route: '/pinetree',
+    navLabel: 'PineTree',
+    storagePrefix: 'pinetree',
+    performanceLabels: {
+      primary3m: 'Macro 3-Month',
+      primary12m: 'Macro 12-Month',
+      benchmark3mLabel: 'vs S&P',
+      benchmark12mLabel: 'vs S&P',
+      realizedLabel: 'Realized Calls 12m',
+      hedgeLabel: 'India Index',
+    },
+  },
 };
 
-export const ALL_TRACKER_IDS: TrackerId[] = ['beartraps', 'cramer', 'pelosi', 'burry'];
+export const ALL_TRACKER_IDS: TrackerId[] = ['beartraps', 'cramer', 'pelosi', 'burry', 'pinetree'];

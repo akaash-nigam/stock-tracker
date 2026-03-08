@@ -89,7 +89,7 @@ export interface PositionWithMarket extends Position {
 
 // --- Generic Investor Tracker ---
 
-export type TrackerId = 'beartraps' | 'cramer' | 'pelosi' | 'burry';
+export type TrackerId = 'beartraps' | 'cramer' | 'pelosi' | 'burry' | 'pinetree';
 export type TrackerAction = 'Buy' | 'Sell';
 export type TrackerTimeframe = 'short' | 'long';
 

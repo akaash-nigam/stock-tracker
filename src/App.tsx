@@ -23,6 +23,7 @@ import { SEED_BTR_ALERTS, SEED_BTR_HOLDINGS, SEED_BTR_REPORT } from './lib/btrSe
 import { SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT } from './lib/cramerSeedData';
 import { SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT } from './lib/pelosiSeedData';
 import { SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT } from './lib/burrySeedData';
+import { SEED_PINETREE_ALERTS, SEED_PINETREE_HOLDINGS, SEED_PINETREE_REPORT } from './lib/pinetreeSeedData';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
@@ -46,8 +47,9 @@ export default function App() {
   const cramer = useTrackerState('cramer');
   const pelosi = useTrackerState('pelosi');
   const burry = useTrackerState('burry');
-  const trackers = { beartraps, cramer, pelosi, burry };
-  const allTrackerStates = [beartraps, cramer, pelosi, burry];
+  const pinetree = useTrackerState('pinetree');
+  const trackers = { beartraps, cramer, pelosi, burry, pinetree };
+  const allTrackerStates = [beartraps, cramer, pelosi, burry, pinetree];
 
   // Load data from storage
   const loadData = useCallback(() => {
@@ -68,7 +70,8 @@ export default function App() {
     cramer.load(SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT);
     pelosi.load(SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT);
     burry.load(SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT);
-  }, [beartraps.load, cramer.load, pelosi.load, burry.load]);
+    pinetree.load(SEED_PINETREE_ALERTS, SEED_PINETREE_HOLDINGS, SEED_PINETREE_REPORT);
+  }, [beartraps.load, cramer.load, pelosi.load, burry.load, pinetree.load]);
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {
