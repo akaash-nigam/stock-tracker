@@ -24,6 +24,12 @@ import { SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT } from './
 import { SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT } from './lib/pelosiSeedData';
 import { SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT } from './lib/burrySeedData';
 import { SEED_PINETREE_ALERTS, SEED_PINETREE_HOLDINGS, SEED_PINETREE_REPORT } from './lib/pinetreeSeedData';
+import { SEED_ARK_ALERTS, SEED_ARK_HOLDINGS, SEED_ARK_REPORT } from './lib/arkSeedData';
+import { SEED_BUFFETT_ALERTS, SEED_BUFFETT_HOLDINGS, SEED_BUFFETT_REPORT } from './lib/buffettSeedData';
+import { SEED_FFTT_ALERTS, SEED_FFTT_HOLDINGS, SEED_FFTT_REPORT } from './lib/ffttSeedData';
+import { SEED_DRUCK_ALERTS, SEED_DRUCK_HOLDINGS, SEED_DRUCK_REPORT } from './lib/druckenmillerSeedData';
+import { SEED_CONGRESS_ALERTS, SEED_CONGRESS_HOLDINGS, SEED_CONGRESS_REPORT } from './lib/congressSeedData';
+import { SEED_WSB_ALERTS, SEED_WSB_HOLDINGS, SEED_WSB_REPORT } from './lib/wsbSeedData';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
@@ -48,8 +54,14 @@ export default function App() {
   const pelosi = useTrackerState('pelosi');
   const burry = useTrackerState('burry');
   const pinetree = useTrackerState('pinetree');
-  const trackers = { beartraps, cramer, pelosi, burry, pinetree };
-  const allTrackerStates = [beartraps, cramer, pelosi, burry, pinetree];
+  const ark = useTrackerState('ark');
+  const buffett = useTrackerState('buffett');
+  const fftt = useTrackerState('fftt');
+  const druckenmiller = useTrackerState('druck');
+  const congress = useTrackerState('congress');
+  const wsb = useTrackerState('wsb');
+  const trackers = { beartraps, cramer, pelosi, burry, pinetree, ark, buffett, fftt, druckenmiller, congress, wsb };
+  const allTrackerStates = [beartraps, cramer, pelosi, burry, pinetree, ark, buffett, fftt, druckenmiller, congress, wsb];
 
   // Load data from storage
   const loadData = useCallback(() => {
@@ -71,7 +83,13 @@ export default function App() {
     pelosi.load(SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT);
     burry.load(SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT);
     pinetree.load(SEED_PINETREE_ALERTS, SEED_PINETREE_HOLDINGS, SEED_PINETREE_REPORT);
-  }, [beartraps.load, cramer.load, pelosi.load, burry.load, pinetree.load]);
+    ark.load(SEED_ARK_ALERTS, SEED_ARK_HOLDINGS, SEED_ARK_REPORT);
+    buffett.load(SEED_BUFFETT_ALERTS, SEED_BUFFETT_HOLDINGS, SEED_BUFFETT_REPORT);
+    fftt.load(SEED_FFTT_ALERTS, SEED_FFTT_HOLDINGS, SEED_FFTT_REPORT);
+    druckenmiller.load(SEED_DRUCK_ALERTS, SEED_DRUCK_HOLDINGS, SEED_DRUCK_REPORT);
+    congress.load(SEED_CONGRESS_ALERTS, SEED_CONGRESS_HOLDINGS, SEED_CONGRESS_REPORT);
+    wsb.load(SEED_WSB_ALERTS, SEED_WSB_HOLDINGS, SEED_WSB_REPORT);
+  }, [beartraps.load, cramer.load, pelosi.load, burry.load, pinetree.load, ark.load, buffett.load, fftt.load, druckenmiller.load, congress.load, wsb.load]);
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {

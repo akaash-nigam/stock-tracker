@@ -34,6 +34,10 @@
   --color-indigo-500: #6366f1;
   --color-rose-400: #fb7185;
   --color-rose-500: #f43f5e;
+  --color-cyan-500: #06b6d4;
+  --color-pink-500: #ec4899;
+  --color-purple-500: #a855f7;
+  --color-emerald-400: #34d399;
 }
 
 body {
