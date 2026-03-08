@@ -23,6 +23,17 @@
   --color-purple-400: #c084fc;
   --color-cyan-400: #22d3ee;
   --color-pink-400: #f472b6;
+  --color-amber-600: #d97706;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
 }
 
 body {

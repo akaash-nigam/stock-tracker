@@ -6,6 +6,8 @@ import type { Currency } from './lib/storage';
 import { getQuotes, getEarningsForSymbols } from './lib/finnhub';
 import { checkAlerts, sendBrowserNotification, requestNotificationPermission, isAlertsEnabled, setAlertsEnabled } from './lib/alerts';
 import { SEED_POSITIONS, SEED_ACCOUNTS } from './lib/seedData';
+import { TRACKER_CONFIGS, ALL_TRACKER_IDS } from './lib/trackerConfig';
+import { useTrackerState } from './hooks/useTrackerState';
 import PinLogin from './components/PinLogin';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -15,10 +17,12 @@ import AccountManager from './components/AccountManager';
 import Watchlist from './components/Watchlist';
 import TradeHistory from './components/TradeHistory';
 import CloseTradeModal from './components/CloseTradeModal';
-import BearTraps from './components/BearTraps';
+import InvestorTracker from './components/InvestorTracker';
 import { CurrencyProvider } from './lib/CurrencyContext';
 import { SEED_BTR_ALERTS, SEED_BTR_HOLDINGS, SEED_BTR_REPORT } from './lib/btrSeedData';
-import type { BtrAlert, BtrHolding, BtrReport } from './types';
+import { SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT } from './lib/cramerSeedData';
+import { SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT } from './lib/pelosiSeedData';
+import { SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT } from './lib/burrySeedData';
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
@@ -26,9 +30,6 @@ export default function App() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  const [btrAlerts, setBtrAlerts] = useState<BtrAlert[]>([]);
-  const [btrHoldings, setBtrHoldings] = useState<BtrHolding[]>([]);
-  const [btrReports, setBtrReports] = useState<BtrReport[]>([]);
   const [quotes, setQuotes] = useState<Record<string, MarketQuote>>({});
   const [earnings, setEarnings] = useState<Record<string, string>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -40,12 +41,19 @@ export default function App() {
   const [currency, setCurrency] = useState<Currency>(storage.getCurrency());
   const navigate = useNavigate();
 
+  // Tracker state via custom hooks
+  const beartraps = useTrackerState('btr');
+  const cramer = useTrackerState('cramer');
+  const pelosi = useTrackerState('pelosi');
+  const burry = useTrackerState('burry');
+  const trackers = { beartraps, cramer, pelosi, burry };
+  const allTrackerStates = [beartraps, cramer, pelosi, burry];
+
   // Load data from storage
   const loadData = useCallback(() => {
     let pos = storage.getPositions();
     let acc = storage.getAccounts();
 
-    // Seed accounts on first run
     if (acc.length === 0) {
       storage.saveAccounts(SEED_ACCOUNTS);
       acc = SEED_ACCOUNTS;
@@ -55,29 +63,19 @@ export default function App() {
     setAccounts(acc);
     setWatchlist(storage.getWatchlist());
 
-    // Load Bear Traps data
-    let bAlerts = storage.getBtrAlerts();
-    let bHoldings = storage.getBtrHoldings();
-    let bReports = storage.getBtrReports();
-    if (bAlerts.length === 0 && bHoldings.length === 0) {
-      storage.saveBtrAlerts(SEED_BTR_ALERTS);
-      storage.saveBtrHoldings(SEED_BTR_HOLDINGS);
-      storage.saveBtrReports([SEED_BTR_REPORT]);
-      bAlerts = SEED_BTR_ALERTS;
-      bHoldings = SEED_BTR_HOLDINGS;
-      bReports = [SEED_BTR_REPORT];
-    }
-    setBtrAlerts(bAlerts);
-    setBtrHoldings(bHoldings);
-    setBtrReports(bReports);
-  }, []);
+    // Load all tracker data with seeds
+    beartraps.load(SEED_BTR_ALERTS, SEED_BTR_HOLDINGS, SEED_BTR_REPORT);
+    cramer.load(SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT);
+    pelosi.load(SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT);
+    burry.load(SEED_BURRY_ALERTS, SEED_BURRY_HOLDINGS, SEED_BURRY_REPORT);
+  }, [beartraps.load, cramer.load, pelosi.load, burry.load]);
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {
     const openPositions = positions.filter(p => p.status === 'open');
     const watchlistTickers = watchlist.map(w => w.ticker);
-    const btrTickers = btrHoldings.map(h => h.ticker);
-    const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers, ...btrTickers])];
+    const trackerTickers = allTrackerStates.flatMap(t => t.tickers);
+    const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers, ...trackerTickers])];
     if (allSymbols.length === 0) return;
 
     setLoading(true);
@@ -110,7 +108,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [positions, watchlist, btrHoldings]);
+  }, [positions, watchlist, ...allTrackerStates.map(t => t.tickers)]);
 
   // Initial load
   useEffect(() => {
@@ -118,13 +116,14 @@ export default function App() {
   }, [authenticated, loadData]);
 
   // Fetch market data on load and every 60s
+  const hasData = positions.length > 0 || watchlist.length > 0 || allTrackerStates.some(t => t.holdings.length > 0);
   useEffect(() => {
-    if (!authenticated || (positions.length === 0 && watchlist.length === 0 && btrHoldings.length === 0)) return;
+    if (!authenticated || !hasData) return;
 
     fetchMarketData();
     const interval = setInterval(fetchMarketData, 60_000);
     return () => clearInterval(interval);
-  }, [authenticated, positions.length, watchlist.length, btrHoldings.length, fetchMarketData]);
+  }, [authenticated, hasData, fetchMarketData]);
 
   // Toggle alerts
   async function toggleAlerts() {
@@ -233,20 +232,6 @@ export default function App() {
     setWatchlist(storage.deleteWatchlistItem(id));
   }
 
-  // Bear Traps CRUD
-  function handleSaveBtrAlerts(alerts: BtrAlert[]) {
-    storage.saveBtrAlerts(alerts);
-    setBtrAlerts(alerts);
-  }
-  function handleSaveBtrHoldings(holdings: BtrHolding[]) {
-    storage.saveBtrHoldings(holdings);
-    setBtrHoldings(holdings);
-  }
-  function handleSaveBtrReports(reports: BtrReport[]) {
-    storage.saveBtrReports(reports);
-    setBtrReports(reports);
-  }
-
   if (!authenticated) {
     return <PinLogin onSuccess={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
   }
@@ -332,20 +317,29 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="beartraps"
-            element={
-              <BearTraps
-                alerts={btrAlerts}
-                holdings={btrHoldings}
-                reports={btrReports}
-                quotes={quotes}
-                onSaveAlerts={handleSaveBtrAlerts}
-                onSaveHoldings={handleSaveBtrHoldings}
-                onSaveReports={handleSaveBtrReports}
+          {/* Investor Tracker routes */}
+          {ALL_TRACKER_IDS.map(id => {
+            const tracker = trackers[id];
+            const config = TRACKER_CONFIGS[id];
+            return (
+              <Route
+                key={id}
+                path={config.route.slice(1)}
+                element={
+                  <InvestorTracker
+                    config={config}
+                    alerts={tracker.alerts}
+                    holdings={tracker.holdings}
+                    reports={tracker.reports}
+                    quotes={quotes}
+                    onSaveAlerts={tracker.saveAlerts}
+                    onSaveHoldings={tracker.saveHoldings}
+                    onSaveReports={tracker.saveReports}
+                  />
+                }
               />
-            }
-          />
+            );
+          })}
           <Route
             path="accounts"
             element={

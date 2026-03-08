@@ -16,11 +16,13 @@ import {
   History,
   Settings,
   Key,
-  FileText,
+  ChevronDown,
+  TrendingUp,
 } from 'lucide-react';
 import { clearSession, exportData, importData, getFinnhubApiKey, setFinnhubApiKey, getCurrency, setCurrency as saveCurrency } from '../lib/storage';
 import type { Currency } from '../lib/storage';
 import { hasApiKey } from '../lib/finnhub';
+import { ALL_TRACKER_IDS, TRACKER_CONFIGS } from '../lib/trackerConfig';
 
 import type { UserName } from '../types';
 
@@ -55,9 +57,14 @@ const navItems = [
   { to: '/add', icon: PlusCircle, label: 'Add Trade' },
   { to: '/watchlist', icon: Eye, label: 'Watchlist' },
   { to: '/history', icon: History, label: 'History' },
-  { to: '/beartraps', icon: FileText, label: 'Bear Traps' },
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
 ];
+
+const trackerNavItems = ALL_TRACKER_IDS.map(id => ({
+  to: TRACKER_CONFIGS[id].route,
+  icon: TRACKER_CONFIGS[id].icon,
+  label: TRACKER_CONFIGS[id].navLabel,
+}));
 
 export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated, loading, alertsOn, onToggleAlerts, alertBanner, currentUser, currency, onCurrencyChange, onApiKeyChange }: LayoutProps) {
   const [showSettings, setShowSettings] = useState(false);
@@ -146,6 +153,32 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
                   {label}
                 </NavLink>
               ))}
+              {/* Trackers dropdown */}
+              <div className="relative group">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                  <TrendingUp className="w-4 h-4" />
+                  Trackers
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 hidden group-hover:block min-w-[180px] z-50">
+                  {trackerNavItems.map(({ to, icon: Icon, label }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-blue-500/10 text-blue-400'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                        }`
+                      }
+                    >
+                      <Icon className="w-4 h-4" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
             </nav>
           </div>
 
@@ -226,14 +259,14 @@ export default function Layout({ onLogout, onRefresh, onDataChange, lastUpdated,
         </div>
 
         {/* Mobile nav */}
-        <nav className="md:hidden flex border-t border-slate-800">
-          {navItems.map(({ to, icon: Icon, label }) => (
+        <nav className="md:hidden flex overflow-x-auto border-t border-slate-800">
+          {[...navItems, ...trackerNavItems].map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${
+                `shrink-0 flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors ${
                   isActive ? 'text-blue-400' : 'text-slate-500'
                 }`
               }

@@ -87,15 +87,16 @@ export interface PositionWithMarket extends Position {
   earningsDate: string | null;
 }
 
-// --- Bear Traps Report ---
+// --- Generic Investor Tracker ---
 
-export type BtrAction = 'Buy' | 'Sell';
-export type BtrTimeframe = 'short' | 'long';
+export type TrackerId = 'beartraps' | 'cramer' | 'pelosi' | 'burry';
+export type TrackerAction = 'Buy' | 'Sell';
+export type TrackerTimeframe = 'short' | 'long';
 
-export interface BtrAlert {
+export interface TrackerAlert {
   id: string;
-  action: BtrAction;
-  size: string; // '1/3', '1/4', 'All'
+  action: TrackerAction;
+  size: string;
   ticker: string;
   description: string;
   price?: number;
@@ -104,16 +105,16 @@ export interface BtrAlert {
   sector: string;
 }
 
-export interface BtrHolding {
+export interface TrackerHolding {
   id: string;
-  position: string; // '1/3', '2/3', '3/3'
+  position: string;
   ticker: string;
   description: string;
   sector: string;
-  timeframe: BtrTimeframe;
+  timeframe: TrackerTimeframe;
 }
 
-export interface BtrReport {
+export interface TrackerReport {
   id: string;
   date: string;
   title: string;
@@ -129,6 +130,13 @@ export interface BtrReport {
   allocation: Record<string, number>;
   notes: string;
 }
+
+// Backward compat aliases
+export type BtrAction = TrackerAction;
+export type BtrTimeframe = TrackerTimeframe;
+export type BtrAlert = TrackerAlert;
+export type BtrHolding = TrackerHolding;
+export type BtrReport = TrackerReport;
 
 export interface AppState {
   positions: Position[];

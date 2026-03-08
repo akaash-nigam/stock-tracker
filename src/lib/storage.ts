@@ -1,4 +1,5 @@
-import type { Position, Account, WatchlistItem, UserName, BtrAlert, BtrHolding, BtrReport } from '../types';
+import type { Position, Account, WatchlistItem, UserName, BtrAlert, BtrHolding, BtrReport, TrackerAlert, TrackerHolding, TrackerReport } from '../types';
+import { ALL_TRACKER_IDS, TRACKER_CONFIGS } from './trackerConfig';
 
 const API_KEY_KEY = 'st_finnhub_api_key';
 const CURRENCY_KEY = 'st_currency';
@@ -224,15 +225,54 @@ export function saveBtrReports(reports: BtrReport[]): void {
   localStorage.setItem(BTR_REPORTS_KEY, JSON.stringify(reports));
 }
 
+// --- Generic Tracker Storage ---
+
+export function getTrackerAlerts(prefix: string): TrackerAlert[] {
+  const raw = localStorage.getItem(`st_${prefix}_alerts`);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveTrackerAlerts(prefix: string, alerts: TrackerAlert[]): void {
+  localStorage.setItem(`st_${prefix}_alerts`, JSON.stringify(alerts));
+}
+
+export function getTrackerHoldings(prefix: string): TrackerHolding[] {
+  const raw = localStorage.getItem(`st_${prefix}_holdings`);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveTrackerHoldings(prefix: string, holdings: TrackerHolding[]): void {
+  localStorage.setItem(`st_${prefix}_holdings`, JSON.stringify(holdings));
+}
+
+export function getTrackerReports(prefix: string): TrackerReport[] {
+  const raw = localStorage.getItem(`st_${prefix}_reports`);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export function saveTrackerReports(prefix: string, reports: TrackerReport[]): void {
+  localStorage.setItem(`st_${prefix}_reports`, JSON.stringify(reports));
+}
+
 // --- Import / Export (for sharing between friends) ---
 
 export function exportData(): string {
-  return JSON.stringify({
+  const data: Record<string, unknown> = {
     positions: getPositions(),
     accounts: getAccounts(),
     watchlist: getWatchlist(),
     exportedAt: new Date().toISOString(),
-  }, null, 2);
+  };
+  for (const id of ALL_TRACKER_IDS) {
+    const prefix = TRACKER_CONFIGS[id].storagePrefix;
+    data[`${prefix}_alerts`] = getTrackerAlerts(prefix);
+    data[`${prefix}_holdings`] = getTrackerHoldings(prefix);
+    data[`${prefix}_reports`] = getTrackerReports(prefix);
+  }
+  return JSON.stringify(data, null, 2);
 }
 
 export function importData(json: string): { positions: Position[]; accounts: Account[] } {
@@ -240,5 +280,11 @@ export function importData(json: string): { positions: Position[]; accounts: Acc
   if (data.positions) savePositions(data.positions);
   if (data.accounts) saveAccounts(data.accounts);
   if (data.watchlist) saveWatchlist(data.watchlist);
+  for (const id of ALL_TRACKER_IDS) {
+    const prefix = TRACKER_CONFIGS[id].storagePrefix;
+    if (data[`${prefix}_alerts`]) saveTrackerAlerts(prefix, data[`${prefix}_alerts`]);
+    if (data[`${prefix}_holdings`]) saveTrackerHoldings(prefix, data[`${prefix}_holdings`]);
+    if (data[`${prefix}_reports`]) saveTrackerReports(prefix, data[`${prefix}_reports`]);
+  }
   return { positions: data.positions ?? [], accounts: data.accounts ?? [] };
 }
