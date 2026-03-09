@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { TrackerAlert, TrackerHolding, TrackerReport } from '../types';
 import * as storage from '../lib/storage';
 
@@ -50,7 +50,10 @@ export function useTrackerState(storagePrefix: string): TrackerState {
     setReports(newReports);
   }, [storagePrefix]);
 
-  const tickers = [...new Set([...holdings.map(h => h.ticker), ...alerts.slice(0, 20).map(a => a.ticker)])];
+  const tickers = useMemo(
+    () => [...new Set([...holdings.map(h => h.ticker), ...alerts.slice(0, 20).map(a => a.ticker)])],
+    [holdings, alerts]
+  );
 
   return { alerts, holdings, reports, saveAlerts, saveHoldings, saveReports, load, tickers };
 }

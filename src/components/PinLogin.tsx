@@ -7,6 +7,9 @@ import type { UserName } from '../types';
 
 interface PinLoginProps {
   onSuccess: (user: UserName) => void;
+  requireCloudAuth?: boolean;
+  cloudAuthed?: boolean;
+  onCloudSignIn?: () => Promise<boolean>;
 }
 
 const USER_COLORS: Record<string, string> = {
@@ -23,12 +26,13 @@ const USER_INITIALS: Record<string, string> = {
   Vishal: 'V', Jinesh: 'J', Hitesh: 'H', Soham: 'S', Aakash: 'A', Sarthak: 'S', Amrit: 'A',
 };
 
-export default function PinLogin({ onSuccess }: PinLoginProps) {
+export default function PinLogin({ onSuccess, requireCloudAuth = false, cloudAuthed = false, onCloudSignIn }: PinLoginProps) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isSettingPin, setIsSettingPin] = useState(false);
   const [confirmPin, setConfirmPin] = useState('');
   const [pinVerified, setPinVerified] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const existingHash = getPinHash();
 
@@ -69,6 +73,15 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     onSuccess(user);
   }
 
+  async function handleGoogleSignIn() {
+    if (!onCloudSignIn || googleLoading) return;
+    setError('');
+    setGoogleLoading(true);
+    const ok = await onCloudSignIn();
+    setGoogleLoading(false);
+    if (!ok) setError('Google sign-in failed. Please try again.');
+  }
+
   function handleKey(key: string) {
     setError('');
     if (key === 'del') {
@@ -82,6 +95,30 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
 
   // Step 2: User selection
   if (pinVerified) {
+    if (requireCloudAuth && !cloudAuthed) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+          <div className="w-full max-w-sm">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/10 mb-4">
+                <User className="w-8 h-8 text-blue-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-100">Sign in required</h1>
+              <p className="text-slate-400 mt-1 text-sm">Continue with Google to access cloud sync</p>
+            </div>
+            {error && <p className="text-red-400 text-center text-sm mb-4">{error}</p>}
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold transition-colors"
+            >
+              {googleLoading ? 'Signing in...' : 'Continue with Google'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
         <div className="w-full max-w-sm">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import type { Position, Account, PositionWithMarket, MarketQuote, WatchlistItem, UserName } from './types';
 import * as storage from './lib/storage';
@@ -19,6 +19,7 @@ import TradeHistory from './components/TradeHistory';
 import CloseTradeModal from './components/CloseTradeModal';
 import InvestorTracker from './components/InvestorTracker';
 import { CurrencyProvider } from './lib/CurrencyContext';
+import { getCloudUser, isFirebaseConfigured, onCloudAuthChanged, signInWithGoogle } from './lib/firebase';
 import { SEED_BTR_ALERTS, SEED_BTR_HOLDINGS, SEED_BTR_REPORT } from './lib/btrSeedData';
 import { SEED_CRAMER_ALERTS, SEED_CRAMER_HOLDINGS, SEED_CRAMER_REPORT } from './lib/cramerSeedData';
 import { SEED_PELOSI_ALERTS, SEED_PELOSI_HOLDINGS, SEED_PELOSI_REPORT } from './lib/pelosiSeedData';
@@ -32,8 +33,11 @@ import { SEED_CONGRESS_ALERTS, SEED_CONGRESS_HOLDINGS, SEED_CONGRESS_REPORT } fr
 import { SEED_WSB_ALERTS, SEED_WSB_HOLDINGS, SEED_WSB_REPORT } from './lib/wsbSeedData';
 
 export default function App() {
+  const requiresCloudAuth = isFirebaseConfigured();
   const [authenticated, setAuthenticated] = useState(storage.isSessionValid());
   const [currentUser, setCurrentUser] = useState<UserName | null>(storage.getCurrentUser());
+  const [cloudAuthed, setCloudAuthed] = useState(!!getCloudUser());
+  const [cloudAccessDenied, setCloudAccessDenied] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
@@ -47,6 +51,13 @@ export default function App() {
   const [alertBanner, setAlertBanner] = useState<string | null>(null);
   const [currency, setCurrency] = useState<Currency>(storage.getCurrency());
   const navigate = useNavigate();
+  const isFetchingRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
+
+  useEffect(() => onCloudAuthChanged((user) => {
+    setCloudAuthed(!!user);
+    setCloudAccessDenied(false);
+  }), []);
 
   // Tracker state via custom hooks
   const beartraps = useTrackerState('btr');
@@ -93,12 +104,18 @@ export default function App() {
 
   // Fetch market data
   const fetchMarketData = useCallback(async () => {
+    const now = Date.now();
+    // Prevent overlapping requests and accidental rapid loops.
+    if (isFetchingRef.current || now - lastFetchAtRef.current < 8_000) return;
+
     const openPositions = positions.filter(p => p.status === 'open');
     const watchlistTickers = watchlist.map(w => w.ticker);
     const trackerTickers = allTrackerStates.flatMap(t => t.tickers);
     const allSymbols = [...new Set([...openPositions.map(p => p.ticker), ...watchlistTickers, ...trackerTickers])];
     if (allSymbols.length === 0) return;
 
+    isFetchingRef.current = true;
+    lastFetchAtRef.current = now;
     setLoading(true);
     try {
       const [newQuotes, newEarnings] = await Promise.all([
@@ -128,13 +145,51 @@ export default function App() {
       // Silently fail
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [positions, watchlist, ...allTrackerStates.map(t => t.tickers)]);
 
-  // Initial load
+  // Initial load (hydrate cloud -> local -> UI)
   useEffect(() => {
-    if (authenticated) loadData();
-  }, [authenticated, loadData]);
+    if (!authenticated) return;
+    if (requiresCloudAuth && !cloudAuthed) return;
+
+    let cancelled = false;
+    (async () => {
+      const cloudStatus = await storage.hydrateFromCloud();
+      if (cancelled) return;
+      if (cloudStatus === 'denied') {
+        setCloudAccessDenied(true);
+        return;
+      }
+      setCurrency(storage.getCurrency());
+      loadData();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, loadData, requiresCloudAuth, cloudAuthed]);
+
+  if (authenticated && requiresCloudAuth && cloudAuthed && cloudAccessDenied) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-slate-900 border border-red-500/20 p-6">
+          <h1 className="text-2xl font-bold text-slate-100 mb-2">Access Pending Approval</h1>
+          <p className="text-slate-300 text-sm mb-3">
+            Your Google account is signed in, but this UID is not allowlisted for this app.
+          </p>
+          <p className="text-slate-400 text-sm mb-4">
+            Contact the admin and share your Firebase UID below to request access.
+          </p>
+          <div className="rounded-lg bg-slate-800 border border-slate-700 p-3">
+            <p className="text-xs text-slate-500 mb-1">Firebase UID</p>
+            <p className="text-sm font-mono break-all text-amber-300">{getCloudUser()?.uid ?? 'Unavailable'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Fetch market data on load and every 60s
   const hasData = positions.length > 0 || watchlist.length > 0 || allTrackerStates.some(t => t.holdings.length > 0);
@@ -253,8 +308,18 @@ export default function App() {
     setWatchlist(storage.deleteWatchlistItem(id));
   }
 
-  if (!authenticated) {
-    return <PinLogin onSuccess={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
+  if (!authenticated || (requiresCloudAuth && !cloudAuthed)) {
+    return (
+      <PinLogin
+        requireCloudAuth={requiresCloudAuth}
+        cloudAuthed={cloudAuthed}
+        onCloudSignIn={signInWithGoogle}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setAuthenticated(true);
+        }}
+      />
+    );
   }
 
   const editPosition = editId ? positions.find(p => p.id === editId) ?? null : null;

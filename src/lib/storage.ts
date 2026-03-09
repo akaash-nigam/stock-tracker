@@ -1,5 +1,6 @@
 import type { Position, Account, WatchlistItem, UserName, BtrAlert, BtrHolding, BtrReport, TrackerAlert, TrackerHolding, TrackerReport } from '../types';
 import { ALL_TRACKER_IDS, TRACKER_CONFIGS } from './trackerConfig';
+import { clearCloudAccessDenied, hasCompletedCloudMigration, isCloudAccessDenied, isCloudAvailable, loadCloudPayload, markCloudMigrationComplete, saveCloudPayload } from './cloudStorage';
 
 const API_KEY_KEY = 'st_finnhub_api_key';
 const CURRENCY_KEY = 'st_currency';
@@ -10,16 +11,104 @@ const WATCHLIST_KEY = 'st_watchlist';
 const PIN_HASH_KEY = 'st_pin_hash';
 const SESSION_KEY = 'st_session';
 
+let syncTimer: number | null = null;
+
+function readJson<T>(key: string, fallback: T): T {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(key: string, value: unknown): void {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getTrackerCloudData(): Record<string, { alerts: TrackerAlert[]; holdings: TrackerHolding[]; reports: TrackerReport[] }> {
+  const trackers: Record<string, { alerts: TrackerAlert[]; holdings: TrackerHolding[]; reports: TrackerReport[] }> = {};
+  for (const id of ALL_TRACKER_IDS) {
+    const prefix = TRACKER_CONFIGS[id].storagePrefix;
+    trackers[prefix] = {
+      alerts: getTrackerAlerts(prefix),
+      holdings: getTrackerHoldings(prefix),
+      reports: getTrackerReports(prefix),
+    };
+  }
+  return trackers;
+}
+
+async function syncAllToCloud(): Promise<void> {
+  if (!isCloudAvailable()) return;
+  await saveCloudPayload({
+    positions: getPositions(),
+    accounts: getAccounts(),
+    watchlist: getWatchlist(),
+    snapshots: getSnapshots(),
+    currency: getCurrency(),
+    trackers: getTrackerCloudData(),
+  });
+}
+
+function scheduleCloudSync(): void {
+  if (!isCloudAvailable()) return;
+  if (syncTimer !== null) {
+    window.clearTimeout(syncTimer);
+  }
+  syncTimer = window.setTimeout(() => {
+    syncTimer = null;
+    void syncAllToCloud();
+  }, 400);
+}
+
+export type CloudHydrateStatus = 'disabled' | 'loaded' | 'skipped' | 'denied';
+
+export async function hydrateFromCloud(): Promise<CloudHydrateStatus> {
+  if (!isCloudAvailable()) return 'disabled';
+
+  const payload = await loadCloudPayload();
+  if (!payload) {
+    if (isCloudAccessDenied()) return 'denied';
+    if (!hasCompletedCloudMigration()) {
+      await syncAllToCloud();
+      if (isCloudAccessDenied()) return 'denied';
+      markCloudMigrationComplete();
+      clearCloudAccessDenied();
+      return 'loaded';
+    }
+    return 'skipped';
+  }
+
+  if (payload.positions) writeJson(POSITIONS_KEY, payload.positions);
+  if (payload.accounts) writeJson(ACCOUNTS_KEY, payload.accounts);
+  if (payload.watchlist) writeJson(WATCHLIST_KEY, payload.watchlist);
+  if (payload.snapshots) writeJson(SNAPSHOTS_KEY, payload.snapshots);
+  if (payload.currency) localStorage.setItem(CURRENCY_KEY, payload.currency);
+
+  if (payload.trackers) {
+    for (const [prefix, tracker] of Object.entries(payload.trackers)) {
+      writeJson(`st_${prefix}_alerts`, tracker.alerts ?? []);
+      writeJson(`st_${prefix}_holdings`, tracker.holdings ?? []);
+      writeJson(`st_${prefix}_reports`, tracker.reports ?? []);
+    }
+  }
+
+  clearCloudAccessDenied();
+  markCloudMigrationComplete();
+  return 'loaded';
+}
+
 // --- Positions ---
 
 export function getPositions(): Position[] {
-  const raw = localStorage.getItem(POSITIONS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<Position[]>(POSITIONS_KEY, []);
 }
 
 export function savePositions(positions: Position[]): void {
-  localStorage.setItem(POSITIONS_KEY, JSON.stringify(positions));
+  writeJson(POSITIONS_KEY, positions);
+  scheduleCloudSync();
 }
 
 export function addPosition(position: Position): Position[] {
@@ -46,13 +135,12 @@ export function deletePosition(id: string): Position[] {
 // --- Accounts ---
 
 export function getAccounts(): Account[] {
-  const raw = localStorage.getItem(ACCOUNTS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<Account[]>(ACCOUNTS_KEY, []);
 }
 
 export function saveAccounts(accounts: Account[]): void {
-  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  writeJson(ACCOUNTS_KEY, accounts);
+  scheduleCloudSync();
 }
 
 export function addAccount(account: Account): Account[] {
@@ -116,13 +204,12 @@ export function clearSession(): void {
 // --- Watchlist ---
 
 export function getWatchlist(): WatchlistItem[] {
-  const raw = localStorage.getItem(WATCHLIST_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<WatchlistItem[]>(WATCHLIST_KEY, []);
 }
 
 export function saveWatchlist(items: WatchlistItem[]): void {
-  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(items));
+  writeJson(WATCHLIST_KEY, items);
+  scheduleCloudSync();
 }
 
 export function addWatchlistItem(item: WatchlistItem): WatchlistItem[] {
@@ -158,6 +245,7 @@ export function getCurrency(): Currency {
 
 export function setCurrency(currency: Currency): void {
   localStorage.setItem(CURRENCY_KEY, currency);
+  scheduleCloudSync();
 }
 
 // --- Portfolio Snapshots ---
@@ -170,9 +258,7 @@ export interface PortfolioSnapshot {
 }
 
 export function getSnapshots(): PortfolioSnapshot[] {
-  const raw = localStorage.getItem(SNAPSHOTS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<PortfolioSnapshot[]>(SNAPSHOTS_KEY, []);
 }
 
 export function saveSnapshot(snapshot: PortfolioSnapshot): void {
@@ -186,7 +272,8 @@ export function saveSnapshot(snapshot: PortfolioSnapshot): void {
   }
   // Keep last 365 days
   const trimmed = snapshots.slice(-365);
-  localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(trimmed));
+  writeJson(SNAPSHOTS_KEY, trimmed);
+  scheduleCloudSync();
 }
 
 // --- Bear Traps ---
@@ -196,65 +283,59 @@ const BTR_HOLDINGS_KEY = 'st_btr_holdings';
 const BTR_REPORTS_KEY = 'st_btr_reports';
 
 export function getBtrAlerts(): BtrAlert[] {
-  const raw = localStorage.getItem(BTR_ALERTS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<BtrAlert[]>(BTR_ALERTS_KEY, []);
 }
 
 export function saveBtrAlerts(alerts: BtrAlert[]): void {
-  localStorage.setItem(BTR_ALERTS_KEY, JSON.stringify(alerts));
+  writeJson(BTR_ALERTS_KEY, alerts);
+  scheduleCloudSync();
 }
 
 export function getBtrHoldings(): BtrHolding[] {
-  const raw = localStorage.getItem(BTR_HOLDINGS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<BtrHolding[]>(BTR_HOLDINGS_KEY, []);
 }
 
 export function saveBtrHoldings(holdings: BtrHolding[]): void {
-  localStorage.setItem(BTR_HOLDINGS_KEY, JSON.stringify(holdings));
+  writeJson(BTR_HOLDINGS_KEY, holdings);
+  scheduleCloudSync();
 }
 
 export function getBtrReports(): BtrReport[] {
-  const raw = localStorage.getItem(BTR_REPORTS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<BtrReport[]>(BTR_REPORTS_KEY, []);
 }
 
 export function saveBtrReports(reports: BtrReport[]): void {
-  localStorage.setItem(BTR_REPORTS_KEY, JSON.stringify(reports));
+  writeJson(BTR_REPORTS_KEY, reports);
+  scheduleCloudSync();
 }
 
 // --- Generic Tracker Storage ---
 
 export function getTrackerAlerts(prefix: string): TrackerAlert[] {
-  const raw = localStorage.getItem(`st_${prefix}_alerts`);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<TrackerAlert[]>(`st_${prefix}_alerts`, []);
 }
 
 export function saveTrackerAlerts(prefix: string, alerts: TrackerAlert[]): void {
-  localStorage.setItem(`st_${prefix}_alerts`, JSON.stringify(alerts));
+  writeJson(`st_${prefix}_alerts`, alerts);
+  scheduleCloudSync();
 }
 
 export function getTrackerHoldings(prefix: string): TrackerHolding[] {
-  const raw = localStorage.getItem(`st_${prefix}_holdings`);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<TrackerHolding[]>(`st_${prefix}_holdings`, []);
 }
 
 export function saveTrackerHoldings(prefix: string, holdings: TrackerHolding[]): void {
-  localStorage.setItem(`st_${prefix}_holdings`, JSON.stringify(holdings));
+  writeJson(`st_${prefix}_holdings`, holdings);
+  scheduleCloudSync();
 }
 
 export function getTrackerReports(prefix: string): TrackerReport[] {
-  const raw = localStorage.getItem(`st_${prefix}_reports`);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  return readJson<TrackerReport[]>(`st_${prefix}_reports`, []);
 }
 
 export function saveTrackerReports(prefix: string, reports: TrackerReport[]): void {
-  localStorage.setItem(`st_${prefix}_reports`, JSON.stringify(reports));
+  writeJson(`st_${prefix}_reports`, reports);
+  scheduleCloudSync();
 }
 
 // --- Import / Export (for sharing between friends) ---
@@ -286,5 +367,6 @@ export function importData(json: string): { positions: Position[]; accounts: Acc
     if (data[`${prefix}_holdings`]) saveTrackerHoldings(prefix, data[`${prefix}_holdings`]);
     if (data[`${prefix}_reports`]) saveTrackerReports(prefix, data[`${prefix}_reports`]);
   }
+  scheduleCloudSync();
   return { positions: data.positions ?? [], accounts: data.accounts ?? [] };
 }
